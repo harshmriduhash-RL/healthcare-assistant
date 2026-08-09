@@ -1,0 +1,56 @@
+<!--
+  Login page. Plain HTML form + vanilla JS (no framework) that POSTs
+  username + password to /api/auth/login (see app/api/auth.py). On
+  success, the server has already set the httpOnly auth cookie in its
+  response, so this page just redirects the browser to /dashboard -- no
+  token handling needed client-side. Deliberately no email/OTP/Google
+  auth -- username + password only, by product decision.
+-->
+{% extends "base.html" %}
+{% block title %}Log in — Healthcare AI{% endblock %}
+{% block content %}
+<div class="auth-wrapper">
+    <div class="auth-card">
+        <h1>Welcome back</h1>
+        <p class="subtitle">Log in to your health assistant</p>
+        <div id="error" class="error-text" style="display:none;"></div>
+        <form id="login-form">
+            <input type="text" id="username" placeholder="Username" required autocomplete="username">
+            <input type="password" id="password" placeholder="Password" required autocomplete="current-password">
+            <button type="submit" class="btn-primary">Log in</button>
+        </form>
+        <p class="auth-footer">No account? <a href="/signup">Sign up</a></p>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+// Intercept the form's default submit (which would do a full page
+// navigation) and instead POST the credentials as JSON via fetch, so we
+// can show an inline error message without a page reload on failure.
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errorEl = document.getElementById('error');
+    errorEl.style.display = 'none';
+    const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            username: document.getElementById('username').value,
+            password: document.getElementById('password').value,
+        }),
+    });
+    if (res.ok) {
+        // The server already set the auth cookie on this response --
+        // navigating to /dashboard is enough, no token to store manually.
+        window.location.href = '/dashboard';
+    } else {
+        // Show the server's error detail (e.g. "Invalid username or password")
+        // inline rather than a browser alert.
+        const data = await res.json();
+        errorEl.textContent = data.detail || 'Login failed';
+        errorEl.style.display = 'block';
+    }
+});
+</script>
+{% endblock %}

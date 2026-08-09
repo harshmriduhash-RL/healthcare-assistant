@@ -1,0 +1,50 @@
+<!--
+  Signup page. Same pattern as login.html -- POSTs username + password to
+  /api/auth/signup, which creates the account AND logs the user in
+  immediately (sets the auth cookie), so a successful signup goes
+  straight to /dashboard with no separate login step. Deliberately no
+  email/OTP/Google auth -- username + password only, by product decision.
+-->
+{% extends "base.html" %}
+{% block title %}Sign up — Healthcare AI{% endblock %}
+{% block content %}
+<div class="auth-wrapper">
+    <div class="auth-card">
+        <h1>Create your account</h1>
+        <p class="subtitle">Set up your personal health assistant</p>
+        <div id="error" class="error-text" style="display:none;"></div>
+        <form id="signup-form">
+            <input type="text" id="username" placeholder="Username" required minlength="3" autocomplete="username">
+            <input type="password" id="password" placeholder="Password" required minlength="8" autocomplete="new-password">
+            <button type="submit" class="btn-primary">Sign up</button>
+        </form>
+        <p class="auth-footer">Already have an account? <a href="/login">Log in</a></p>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById('signup-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errorEl = document.getElementById('error');
+    errorEl.style.display = 'none';
+    const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            username: document.getElementById('username').value,
+            password: document.getElementById('password').value,
+        }),
+    });
+    if (res.ok) {
+        window.location.href = '/dashboard';
+    } else {
+        // Most common failure here: "Username already taken" (see
+        // app/api/auth.py's signup route).
+        const data = await res.json();
+        errorEl.textContent = data.detail || 'Signup failed';
+        errorEl.style.display = 'block';
+    }
+});
+</script>
+{% endblock %}

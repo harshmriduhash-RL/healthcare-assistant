@@ -1,0 +1,214 @@
+<!--
+  The AI assistant chat page -- where the multi-agent + human-in-the-loop
+  system actually runs. This is the frontend half of the flow described
+  in app/api/chat.py and app/agents/graph.py: send a message, and either
+  get a direct reply, get blocked by a guardrail, or get an "approval
+  card" for a proposed action that only gets written to the database once
+  Approve/Save & Approve is clicked.
+-->
+{% extends "base.html" %}
+{% block title %}Assistant — Healthcare AI{% endblock %}
+{% block content %}
+<div class="app-shell">
+    <div class="sidebar">
+        <h2>🩺 Health AI</h2>
+        <a href="/dashboard">Dashboard</a>
+        <a href="/chat" class="active">Chat with Assistant</a>
+        <a href="#" id="logout-link">Log out</a>
+    </div>
+    <div class="main-content">
+        <h1>Ask your assistant</h1>
+        <div class="chat-wrapper">
+            <div class="chat-log" id="chat-log"></div>
+            <div class="chat-input-row">
+                <input type="text" id="chat-input" placeholder="e.g. Add my metformin 500mg, twice daily">
+                <button id="send-btn">Send</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+// Set once the first message of a conversation gets a response from the
+// server (see handleResponse below), then reused for every subsequent
+// message so the backend's LangGraph checkpointer resumes the SAME
+// conversation thread instead of starting a fresh one each time.
+let threadId = null;
+
+// Append a plain text message bubble to the chat log. `cls` controls the
+// bubble's style: "user" (right-aligned, blue), "assistant" (left-aligned,
+// white), or "system-blocked" (red -- used when a guardrail blocks a message).
+// Returns the created element so callers can remove/modify it later (used
+// for the "Thinking…"/"Processing…" placeholder messages).
+function appendMsg(text, cls) {
+    const log = document.getElementById('chat-log');
+    const div = document.createElement('div');
+    div.className = 'msg ' + cls;
+    div.textContent = text;
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight; // auto-scroll to the newest message
+    return div;
+}
+
+// Builds one labeled <input> per key in a proposed action's payload, e.g.
+// for {"name": "Metformin", "strength": "500mg"} this produces two
+// labeled text inputs. `data-field` on each input records which payload
+// key it edits, so the Edit flow below can reassemble the edited payload
+// by reading each input's data-field + value.
+function payloadFieldsHtml(payload) {
+    return Object.entries(payload).map(([key, value]) => `
+        <label style="display:block;font-size:11px;color:#64748b;margin-bottom:2px;">${key}</label>
+        <input type="text" data-field="${key}" value="${value === null || value === undefined ? '' : String(value).replace(/"/g, '&quot;')}" style="margin-bottom:8px;">
+    `).join('');
+}
+
+// Renders one "approval card" -- the visual representation of a paused
+// graph run waiting at the human_approval_node interrupt (see
+// app/agents/hitl.py). `request` is the interrupt payload the backend
+// sent back: { agent, action, description, payload }.
+function appendApprovalCard(request) {
+    const log = document.getElementById('chat-log');
+    const card = document.createElement('div');
+    card.className = 'approval-card';
+    // Two payload views are built up front and toggled via CSS display:
+    // a read-only JSON <pre> block (default) and a set of editable inputs
+    // (payload-edit-fields, hidden until "Edit" is clicked).
+    card.innerHTML = `
+        <div class="agent-tag">${request.agent.replace('_', ' ')} — awaiting your approval</div>
+        <div class="description">${request.description}</div>
+        <div class="payload-view">
+            <pre class="payload-readonly">${JSON.stringify(request.payload, null, 2)}</pre>
+            <div class="payload-edit-fields" style="display:none;">${payloadFieldsHtml(request.payload)}</div>
+        </div>
+        <div class="approval-actions">
+            <button class="btn-approve">Approve</button>
+            <button class="btn-edit">Edit</button>
+            <button class="btn-reject">Reject</button>
+            <button class="btn-trace">View trace</button>
+        </div>
+    `;
+    log.appendChild(card);
+    log.scrollTop = log.scrollHeight;
+
+    const editFields = card.querySelector('.payload-edit-fields');
+    const readonlyView = card.querySelector('.payload-readonly');
+    const editBtn = card.querySelector('.btn-edit');
+    const approveBtn = card.querySelector('.btn-approve');
+    let editing = false; // local to this one card's closure -- tracks whether the edit fields are currently shown
+
+    // Toggle between read-only JSON view and editable input fields.
+    // Also relabels the Edit/Approve buttons so their text always
+    // matches what clicking them will actually do.
+    editBtn.addEventListener('click', () => {
+        editing = !editing;
+        readonlyView.style.display = editing ? 'none' : 'block';
+        editFields.style.display = editing ? 'block' : 'none';
+        editBtn.textContent = editing ? 'Cancel edit' : 'Edit';
+        approveBtn.textContent = editing ? 'Save & Approve' : 'Approve';
+    });
+
+    approveBtn.addEventListener('click', () => {
+        if (editing) {
+            // Gather every editable field's current value into a plain
+            // object keyed by its original payload field name, and send
+            // that as the "edited" resume decision -- this becomes the
+            // NEW payload the backend writes, replacing the agent's
+            // original proposal (see app/agents/hitl.py's human_approval_node).
+            const edited = {};
+            editFields.querySelectorAll('input[data-field]').forEach(inp => {
+                edited[inp.dataset.field] = inp.value === '' ? null : inp.value;
+            });
+            resume('edited', card, edited);
+        } else {
+            resume('approved', card, null);
+        }
+    });
+    card.querySelector('.btn-reject').addEventListener('click', () => resume('rejected', card, null));
+    card.querySelector('.btn-trace').addEventListener('click', () => showTrace());
+}
+
+// Fetches and displays the full audit trail for the current conversation
+// thread (see the GET /api/chat/trace/{thread_id} route in
+// app/api/chat.py) -- every guardrail check, routing decision, proposal,
+// human decision, and execution, each with its latency in milliseconds.
+async function showTrace() {
+    if (!threadId) return;
+    const res = await fetch(`/api/chat/trace/${threadId}`);
+    const trace = await res.json();
+    const lines = trace.map(t => `[${t.created_at.split('T')[1].slice(0,8)}] ${t.agent} → ${t.action_type} (${t.latency_ms ?? '-'}ms)`);
+    appendMsg('Trace:\n' + lines.join('\n'), 'assistant');
+}
+
+// Sends a new chat message: shows it immediately as a user bubble, shows
+// a "Thinking…" placeholder while waiting on the backend, then replaces
+// that placeholder with whatever the server actually responds with
+// (a plain reply, a guardrail block, or a pending approval card -- see
+// handleResponse below).
+async function send() {
+    const input = document.getElementById('chat-input');
+    const message = input.value.trim();
+    if (!message) return;
+    appendMsg(message, 'user');
+    input.value = '';
+    const thinking = appendMsg('Thinking…', 'assistant');
+    thinking.classList.add('thinking');
+
+    // thread_id is null on the very first message of a conversation --
+    // the backend generates a new one and returns it, which
+    // handleResponse stores into the `threadId` variable for reuse.
+    const res = await fetch('/api/chat/start', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ message, thread_id: threadId }),
+    });
+    const data = await res.json();
+    thinking.remove();
+    handleResponse(data);
+}
+
+// Sends the human's decision (approve/reject/edited) back to the paused
+// graph run. `card` is the specific approval-card element being
+// responded to -- disabled immediately on click so the same card can't
+// be double-submitted while the request is in flight.
+async function resume(decision, card, editedPayload) {
+    card.querySelectorAll('button, input').forEach(el => el.disabled = true);
+    const thinking = appendMsg('Processing…', 'assistant');
+    thinking.classList.add('thinking');
+
+    const res = await fetch('/api/chat/resume', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ thread_id: threadId, decision, edited_payload: editedPayload || null }),
+    });
+    const data = await res.json();
+    thinking.remove();
+    handleResponse(data);
+}
+
+// Shared response handler for both /start and /resume -- three possible
+// outcomes from the backend, matching the three `status` values
+// app/api/chat.py's routes can return:
+//   "blocked"          -> an input guardrail rejected the message; show it as a red system message
+//   "pending_approval"  -> the graph paused at the HITL gate; render an approval card
+//   "complete"           -> the turn finished with a plain text reply
+function handleResponse(data) {
+    threadId = data.thread_id; // always update, so a brand-new thread_id from the first message gets remembered
+    if (data.status === 'blocked') {
+        appendMsg(data.message, 'system-blocked');
+    } else if (data.status === 'pending_approval') {
+        appendApprovalCard(data.approval_request);
+    } else {
+        appendMsg(data.message, 'assistant');
+    }
+}
+
+document.getElementById('send-btn').addEventListener('click', send);
+document.getElementById('chat-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });
+document.getElementById('logout-link').addEventListener('click', async (e) => {
+    e.preventDefault();
+    await fetch('/api/auth/logout', { method: 'POST' });
+    window.location.href = '/login';
+});
+</script>
+{% endblock %}

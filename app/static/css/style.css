@@ -1,0 +1,176 @@
+/*
+  Shared stylesheet for every page (login, signup, dashboard, chat).
+  Organized in the same order pages tend to use these classes:
+  CSS variables/theme -> auth pages -> app shell (sidebar + main content)
+  -> shared cards/badges -> chat-specific styles (including the
+  approval-card, which is the visual centerpiece of the human-in-the-loop
+  flow -- see app/templates/chat.html).
+*/
+:root {
+    --primary: #2563eb;
+    --primary-dark: #1d4ed8;
+    --bg: #f4f6f9;
+    --card-bg: #ffffff;
+    --border: #e2e8f0;
+    --text: #1e293b;
+    --text-muted: #64748b;
+    --success: #16a34a;
+    --danger: #dc2626;
+    --warning: #d97706;
+    --radius: 10px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+}
+
+.auth-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+}
+
+.auth-card {
+    background: var(--card-bg);
+    padding: 40px;
+    border-radius: var(--radius);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    width: 360px;
+}
+
+.auth-card h1 { font-size: 22px; margin-bottom: 4px; }
+.auth-card p.subtitle { color: var(--text-muted); margin-bottom: 24px; font-size: 14px; }
+
+input, select, textarea {
+    width: 100%;
+    padding: 10px 12px;
+    margin-bottom: 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+button {
+    cursor: pointer;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: white;
+    padding: 10px 18px;
+    width: 100%;
+}
+.btn-primary:hover { background: var(--primary-dark); }
+
+.error-text { color: var(--danger); font-size: 13px; margin-bottom: 10px; }
+.auth-footer { margin-top: 16px; font-size: 13px; text-align: center; color: var(--text-muted); }
+.auth-footer a { color: var(--primary); text-decoration: none; }
+
+/* App shell */
+.app-shell { display: flex; min-height: 100vh; }
+.sidebar {
+    width: 180px;
+    background: #0f172a;
+    color: white;
+    padding: 20px 12px;
+    flex-shrink: 0;
+}
+.sidebar h2 { font-size: 15px; margin-bottom: 20px; line-height: 1.3; }
+.sidebar a {
+    display: block;
+    color: #cbd5e1;
+    text-decoration: none;
+    padding: 9px 10px;
+    border-radius: 8px;
+    margin-bottom: 4px;
+    font-size: 13px;
+}
+.sidebar a:hover, .sidebar a.active { background: #1e293b; color: white; }
+
+.main-content { flex: 1; padding: 28px; overflow-y: auto; max-width: 900px; margin: 0 auto; }
+.main-content h1 { font-size: 22px; margin-bottom: 18px; }
+
+.card {
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    border: 1px solid var(--border);
+    margin-bottom: 16px;
+}
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+
+.badge {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: #dbeafe;
+    color: var(--primary-dark);
+    font-weight: 600;
+}
+
+/* Chat */
+.chat-wrapper { display: flex; flex-direction: column; height: calc(100vh - 64px); max-width: 720px; width: 100%; margin: 0 auto; }
+.chat-log { flex: 1; overflow-y: auto; padding: 12px 4px; }
+.msg { margin-bottom: 14px; max-width: 70%; padding: 10px 14px; border-radius: 12px; font-size: 14px; line-height: 1.5; }
+.msg.user { background: var(--primary); color: white; margin-left: auto; border-bottom-right-radius: 2px; }
+.msg.assistant { background: white; border: 1px solid var(--border); margin-right: auto; border-bottom-left-radius: 2px; }
+.msg.system-blocked { background: #fef2f2; border: 1px solid #fecaca; color: var(--danger); margin-right: auto; }
+
+.chat-input-row { display: flex; gap: 8px; padding-top: 12px; border-top: 1px solid var(--border); }
+.chat-input-row input { margin-bottom: 0; flex: 1; }
+.chat-input-row button { padding: 10px 20px; background: var(--primary); color: white; }
+
+@media (max-width: 900px) {
+    .app-shell { flex-direction: column; }
+    .sidebar { width: 100%; padding: 16px 12px; }
+    .main-content { padding: 20px; }
+    .chat-wrapper { height: auto; max-width: 100%; }
+}
+
+@media (max-width: 760px) {
+    .sidebar { display: none; }
+    .main-content { padding: 16px; }
+    .chat-wrapper { padding-top: 0; }
+}
+
+@media (max-width: 620px) {
+    .chat-wrapper { height: auto; }
+    .msg { max-width: 90%; }
+    .chat-input-row { flex-direction: column; }
+    .chat-input-row button { width: 100%; }
+}
+
+.approval-card {
+    border: 1px solid var(--warning);
+    background: #fffbeb;
+    border-radius: var(--radius);
+    padding: 16px;
+    margin: 10px 0;
+    max-width: 90%;
+}
+.approval-card .agent-tag { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--warning); font-weight: 700; margin-bottom: 6px; }
+.approval-card .description { font-size: 14px; margin-bottom: 10px; font-weight: 500; }
+.approval-card pre { background: #f8fafc; padding: 8px; border-radius: 6px; font-size: 12px; overflow-x: auto; margin-bottom: 12px; }
+.approval-actions { display: flex; gap: 8px; }
+.approval-actions button { padding: 8px 16px; font-size: 13px; }
+.btn-approve { background: var(--success); color: white; }
+.btn-edit { background: var(--primary); color: white; }
+.btn-reject { background: var(--danger); color: white; }
+.btn-trace { background: transparent; border: 1px solid var(--border) !important; color: var(--text-muted); }
+
+.payload-edit-fields input { padding: 6px 8px; font-size: 13px; }
+
+.thinking { color: var(--text-muted); font-size: 13px; font-style: italic; padding: 8px 0; }
