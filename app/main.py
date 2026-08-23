@@ -15,7 +15,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from app.api import auth, chat, dashboard, notifications, pages, records
+from app.api import auth, chat, dashboard, notifications, pages, records, timeline
 from app.core.scheduler import start_scheduler, stop_scheduler
 
 
@@ -31,7 +31,7 @@ async def lifespan(app: FastAPI):
     stop_scheduler()
 
 
-app = FastAPI(title="Healthcare Multi-Agent AI System", lifespan=lifespan)
+app = FastAPI(title="CarePilot — Multi-Agent Healthcare Assistant", lifespan=lifespan)
 
 # Serves everything under app/static/ (currently just the shared
 # stylesheet) at the URL prefix /static -- referenced from base.html as
@@ -47,6 +47,7 @@ app.include_router(chat.router)           # /api/chat/*  -- the agent/HITL syste
 app.include_router(records.router)        # /api/records/*
 app.include_router(dashboard.router)      # /api/dashboard/*  -- direct CRUD
 app.include_router(notifications.router)  # /api/notifications/*
+app.include_router(timeline.router)       # /api/timeline/*
 
 
 @app.get("/api/health")

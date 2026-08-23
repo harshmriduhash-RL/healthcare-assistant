@@ -80,9 +80,16 @@ async def execute_action_node(state: AgentState) -> dict:
         elif action == "remove_dosage":
             result = await postgres_tools.remove_dosage(db, payload["dosage_id"])
         elif action == "schedule_appointment":
+            scheduled_for_date = None
+            if payload.get("scheduled_for"):
+                try:
+                    scheduled_for_date = datetime.fromisoformat(payload["scheduled_for"])
+                except ValueError:
+                    pass
+                    
             result = await postgres_tools.schedule_appointment(
                 db, user_id, payload["doctor_name"], payload.get("specialty"),
-                datetime.fromisoformat(payload["scheduled_for"]), payload.get("notes"),
+                scheduled_for_date, payload.get("notes"),
             )
         else:
             # Should be unreachable given the fixed set of actions worker

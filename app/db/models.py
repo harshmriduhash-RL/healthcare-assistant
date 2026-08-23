@@ -82,10 +82,14 @@ class Medicine(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     strength: Mapped[str] = mapped_column(String(50), nullable=True)  # free text, e.g. "500mg"
     notes: Mapped[str] = mapped_column(Text, nullable=True)
+    supply_count: Mapped[int] = mapped_column(Integer, nullable=True) # total pills/units left
+    refill_threshold: Mapped[int] = mapped_column(Integer, server_default="10") # notify when supply drops below this
     # Soft-delete flag: "remove_medicine" (see app/mcp_servers/postgres_tools.py)
     # currently hard-deletes the row rather than using this flag, but it's
     # kept for future use (e.g. "discontinued but keep for history").
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    current_streak: Mapped[int] = mapped_column(Integer, server_default="0")
+    longest_streak: Mapped[int] = mapped_column(Integer, server_default="0")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -107,11 +111,30 @@ class Dosage(Base):
     amount: Mapped[str] = mapped_column(String(50), nullable=False)  # e.g. "5mg", "1 tablet"
     frequency: Mapped[str] = mapped_column(String(100), nullable=False)  # e.g. "daily", "twice a day"
     time_of_day: Mapped[str] = mapped_column(String(100), nullable=True)  # e.g. "08:00,20:00"
+    consumption_instructions: Mapped[str] = mapped_column(String(255), nullable=True) # e.g. "Before food", "With milk"
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     medicine: Mapped["Medicine"] = relationship(back_populates="dosages")
+
+
+class MedicationLog(Base):
+    """Tracks each individual time a user marks a dosage as 'taken'.
+    Used for the GitHub-style adherence calendar.
+    """
+    __tablename__ = "medication_logs"
+
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    medicine_id: Mapped[str] = mapped_column(ForeignKey("medicines.id", ondelete="CASCADE"), nullable=False, index=True)
+    dosage_id: Mapped[str] = mapped_column(ForeignKey("dosages.id", ondelete="CASCADE"), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(50), default="taken") # "taken" or "missed"
+    taken_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    user: Mapped["User"] = relationship()
+    medicine: Mapped["Medicine"] = relationship()
+    dosage: Mapped["Dosage"] = relationship()
 
 
 class MedicalRecord(Base):
@@ -232,5 +255,6 @@ class Notification(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=True)
     related_id: Mapped[str] = mapped_column(String(255), nullable=True)  # the dosage_id or appointment_id this reminder is about
+    action_payload: Mapped[dict] = mapped_column(JSONB, nullable=True)  # payload for quick actions (e.g. mark_taken, request_refill)
     is_read: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

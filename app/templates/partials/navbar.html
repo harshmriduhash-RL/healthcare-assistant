@@ -1,0 +1,20 @@
+<nav class="navbar" id="site-navbar">
+    <a href="/" class="navbar-brand">
+        <span class="brand-mark">CP</span>
+        <span class="brand-text">CarePilot</span>
+    </a>
+    <button class="navbar-toggle" id="navbar-toggle" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
+    </button>
+    <div class="navbar-links" id="navbar-links">
+        <a href="/#how-it-works">How it works</a>
+        <a href="/#features">Features</a>
+        <a href="/#who-its-for">Who it's for</a>
+        {% if is_logged_in %}
+        <a href="/dashboard" class="btn btn-primary btn-sm">Dashboard</a>
+        {% else %}
+        <a href="/login">Log in</a>
+        <a href="/signup" class="btn btn-primary btn-sm">Get started free</a>
+        {% endif %}
+    </div>
+</nav>

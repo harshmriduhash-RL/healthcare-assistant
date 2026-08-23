@@ -1,22 +1,17 @@
-<!--
-  Base layout every other template extends (login, signup, dashboard, chat).
-  Defines the HTML skeleton once (charset, viewport, shared stylesheet)
-  so individual pages only need to fill in title, content, and scripts blocks
-  rather than repeating <head> boilerplate.
--->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Healthcare AI{% endblock %}</title>
+    <meta name="description" content="CarePilot — Your health, guided by AI, approved by you. A multi-agent assistant for medicines, records, and appointments.">
+    <title>{% block title %}CarePilot{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
-<body>
-    <!-- Each page's main HTML goes here -->
+<body class="{% block body_class %}{% endblock %}">
     {% block content %}{% endblock %}
-    <!-- Each page's <script> tags go here, after the body so the DOM
-         elements they reference already exist when the scripts run -->
     {% block scripts %}{% endblock %}
 </body>
 </html>

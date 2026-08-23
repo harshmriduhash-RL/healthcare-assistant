@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Health Timeline — CarePilot{% endblock %}
+{% block body_class %}app-page{% endblock %}
+{% block content %}
+<div class="app-shell">
+    {% set active_page = 'timeline' %}
+    {% include "partials/app_sidebar.html" %}
+    <div class="main-content" id="main-content">
+        <div class="main-header">
+            <button class="hamburger" id="sidebar-open" title="Open sidebar" aria-label="Open sidebar">&#9776;</button>
+            <div>
+                <h1 id="welcome-heading">Health Timeline</h1>
+                <p class="page-subtitle">A living journal of your medical events, appointments, and adherence.</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3>Your History</h3>
+            </div>
+            <div id="timeline-list" style="padding: 20px;">
+                <p class="thinking">Loading timeline...</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function loadTimeline() {
+    const res = await fetch('/api/timeline/');
+    if (!res.ok) {
+        document.getElementById('timeline-list').innerHTML = '<p class="empty-state">Error loading timeline.</p>';
+        return;
+    }
+    const events = await res.json();
+    const el = document.getElementById('timeline-list');
+    
+    if (events.length === 0) {
+        el.innerHTML = '<p class="empty-state">No events to display yet. Add a medicine or book an appointment!</p>';
+        return;
+    }
+
+    let html = '<div style="position: relative; padding-left: 20px; border-left: 2px solid #e2e8f0; margin-left: 10px;">';
+    
+    events.forEach(evt => {
+        let icon = '📝';
+        let color = '#64748b';
+        if (evt.type === 'medicine_added') { icon = '💊'; color = '#10b981'; }
+        else if (evt.type === 'appointment_scheduled') { icon = '📅'; color = '#3b82f6'; }
+        else if (evt.type === 'record_uploaded') { icon = '📄'; color = '#8b5cf6'; }
+        else if (evt.type === 'medication_log') { icon = '✅'; color = '#f59e0b'; }
+
+        const dateStr = new Date(evt.timestamp).toLocaleString(undefined, {
+            month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit'
+        });
+
+        html += `
+        <div style="position: relative; margin-bottom: 24px;">
+            <div style="position: absolute; left: -34px; top: 0; width: 26px; height: 26px; border-radius: 50%; background: white; border: 2px solid ${color}; display: flex; align-items: center; justify-content: center; font-size: 12px; z-index: 1;">
+                ${icon}
+            </div>
+            <div>
+                <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">${dateStr}</div>
+                <div style="font-weight: 500; color: #0f172a;">${evt.title}</div>
+                ${evt.description ? `<div style="font-size: 14px; color: #475569; margin-top: 4px;">${evt.description}</div>` : ''}
+            </div>
+        </div>
+        `;
+    });
+    
+    html += '</div>';
+    el.innerHTML = html;
+}
+
+loadTimeline();
+
+const sidebar = document.getElementById('sidebar');
+document.getElementById('sidebar-open')?.addEventListener('click', () => sidebar.classList.remove('sidebar-closed'));
+document.getElementById('sidebar-close')?.addEventListener('click', () => sidebar.classList.add('sidebar-closed'));
+if (window.innerWidth <= 900) sidebar.classList.add('sidebar-closed');
+</script>
+{% endblock %}

@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.deps import get_current_user
 from app.core.schemas import LoginRequest, SignupRequest
 from app.core.security import create_access_token, hash_password, verify_password
 from app.db.models import User
@@ -66,6 +67,12 @@ async def login(payload: LoginRequest, response: Response, db: AsyncSession = De
 
     token = create_access_token(subject=user.id)
     response.set_cookie("access_token", token, httponly=True, samesite="lax", max_age=60 * 60 * 24)
+    return {"id": user.id, "username": user.username}
+
+
+@router.get("/me")
+async def me(user: User = Depends(get_current_user)):
+    """Return the currently authenticated user's profile."""
     return {"id": user.id, "username": user.username}
 
 

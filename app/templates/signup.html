@@ -1,24 +1,36 @@
-<!--
-  Signup page. Same pattern as login.html -- POSTs username + password to
-  /api/auth/signup, which creates the account AND logs the user in
-  immediately (sets the auth cookie), so a successful signup goes
-  straight to /dashboard with no separate login step. Deliberately no
-  email/OTP/Google auth -- username + password only, by product decision.
--->
 {% extends "base.html" %}
-{% block title %}Sign up — Healthcare AI{% endblock %}
+{% block title %}Sign up — CarePilot{% endblock %}
+{% block body_class %}auth-page{% endblock %}
 {% block content %}
-<div class="auth-wrapper">
-    <div class="auth-card">
-        <h1>Create your account</h1>
-        <p class="subtitle">Set up your personal health assistant</p>
-        <div id="error" class="error-text" style="display:none;"></div>
-        <form id="signup-form">
-            <input type="text" id="username" placeholder="Username" required minlength="3" autocomplete="username">
-            <input type="password" id="password" placeholder="Password" required minlength="8" autocomplete="new-password">
-            <button type="submit" class="btn-primary">Sign up</button>
-        </form>
-        <p class="auth-footer">Already have an account? <a href="/login">Log in</a></p>
+<div class="auth-layout">
+    <div class="auth-brand-panel">
+        <a href="/" class="auth-brand">
+            <span class="brand-mark">CP</span>
+            <span class="brand-text">CarePilot</span>
+        </a>
+        <h2>Start managing your health smarter</h2>
+        <p>Create your free account and get a team of AI agents that help with medicines, records, and appointments — always with your approval.</p>
+        <ul class="auth-features">
+            <li>Free to use, no credit card</li>
+            <li>Private — your data stays yours</li>
+            <li>Human approval on every AI action</li>
+        </ul>
+    </div>
+    <div class="auth-form-panel">
+        <div class="auth-card">
+            <h1>Create account</h1>
+            <p class="subtitle">Set up your personal CarePilot account</p>
+            <div id="error" class="error-text" style="display:none;"></div>
+            <form id="signup-form">
+                <label for="username">Username</label>
+                <input type="text" id="username" placeholder="Choose a username" required minlength="3" autocomplete="username">
+                <label for="password">Password</label>
+                <input type="password" id="password" placeholder="At least 8 characters" required minlength="8" autocomplete="new-password">
+                <button type="submit" class="btn btn-primary btn-full">Create account</button>
+            </form>
+            <p class="auth-footer">Already have an account? <a href="/login">Log in</a></p>
+            <p class="auth-footer"><a href="/">&larr; Back to home</a></p>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -39,8 +51,6 @@ document.getElementById('signup-form').addEventListener('submit', async (e) => {
     if (res.ok) {
         window.location.href = '/dashboard';
     } else {
-        // Most common failure here: "Username already taken" (see
-        // app/api/auth.py's signup route).
         const data = await res.json();
         errorEl.textContent = data.detail || 'Signup failed';
         errorEl.style.display = 'block';

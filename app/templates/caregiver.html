@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ patient_username }}'s Health Timeline — CarePilot Family</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body style="background: #f8fafc; color: #0f172a; font-family: system-ui, -apple-system, sans-serif;">
+    <div style="max-width: 800px; margin: 40px auto; padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px;">
+            <div>
+                <h1 style="margin: 0; font-size: 24px;">Caregiver View</h1>
+                <p style="margin: 4px 0 0; color: #64748b;">Viewing health timeline for: <strong>{{ patient_username }}</strong></p>
+            </div>
+            <div style="font-size: 24px; font-weight: bold; color: #3b82f6;">CarePilot</div>
+        </div>
+
+        <div style="background: white; border-radius: 12px; padding: 30px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
+            <div id="timeline-list" style="padding-left: 10px;">
+                <p class="thinking">Loading timeline...</p>
+            </div>
+        </div>
+    </div>
+
+<script>
+async function loadCaregiverTimeline() {
+    const res = await fetch('/api/timeline/public/{{ patient_username }}');
+    if (!res.ok) {
+        document.getElementById('timeline-list').innerHTML = '<p class="empty-state" style="color:#ef4444;">Error loading timeline or patient not found.</p>';
+        return;
+    }
+    const events = await res.json();
+    const el = document.getElementById('timeline-list');
+    
+    if (events.length === 0) {
+        el.innerHTML = '<p class="empty-state">No medical events found for this patient.</p>';
+        return;
+    }
+
+    let html = '<div style="position: relative; padding-left: 24px; border-left: 2px solid #e2e8f0;">';
+    
+    events.forEach(evt => {
+        let icon = '📝';
+        let color = '#64748b';
+        if (evt.type === 'medicine_added') { icon = '💊'; color = '#10b981'; }
+        else if (evt.type === 'appointment_scheduled') { icon = '📅'; color = '#3b82f6'; }
+        else if (evt.type === 'record_uploaded') { icon = '📄'; color = '#8b5cf6'; }
+        else if (evt.type === 'medication_log') { icon = '✅'; color = '#f59e0b'; }
+
+        const dateStr = new Date(evt.timestamp).toLocaleString(undefined, {
+            month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit'
+        });
+
+        html += `
+        <div style="position: relative; margin-bottom: 24px;">
+            <div style="position: absolute; left: -38px; top: 0; width: 28px; height: 28px; border-radius: 50%; background: white; border: 2px solid ${color}; display: flex; align-items: center; justify-content: center; font-size: 14px; z-index: 1;">
+                ${icon}
+            </div>
+            <div>
+                <div style="font-size: 13px; color: #64748b; margin-bottom: 4px;">${dateStr}</div>
+                <div style="font-weight: 500; font-size: 16px;">${evt.title}</div>
+                ${evt.description ? `<div style="font-size: 14px; color: #475569; margin-top: 4px;">${evt.description}</div>` : ''}
+            </div>
+        </div>
+        `;
+    });
+    
+    html += '</div>';
+    el.innerHTML = html;
+}
+loadCaregiverTimeline();
+</script>
+</body>
+</html>

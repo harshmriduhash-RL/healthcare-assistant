@@ -151,6 +151,20 @@ async def appointment_agent(state: AgentState) -> dict:
     if result.action == "none":
         return {"final_response": "I won't schedule anything unless you explicitly ask me to. Let me know if you'd like an appointment booked."}
 
+    # --- MOCK AVAILABILITY CHECK ---
+    # To demonstrate a complete flow cycle: in a real system, the AI would
+    # call an EHR API (Epic/MyChart) or a voice agent (Twilio) to check if 
+    # the requested time slot is actually open before proposing the booking.
+    if result.scheduled_for:
+        import random
+        # 20% chance the slot is "taken" to demonstrate the AI pushing back
+        is_available = random.random() > 0.2
+        if not is_available:
+            return {
+                "final_response": f"I checked {result.doctor_name or 'the clinic'}'s schedule, and unfortunately, that specific time is not available. Would you like me to find the next open slot?",
+                "messages": [AIMessage(content=f"I checked {result.doctor_name or 'the clinic'}'s schedule, and unfortunately, that specific time is not available. Would you like me to find the next open slot?")]
+            }
+
     return {
         "proposed_action": {
             "agent": "appointment_agent",

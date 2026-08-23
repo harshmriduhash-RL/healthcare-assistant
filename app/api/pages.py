@@ -24,12 +24,11 @@ templates = Jinja2Templates(directory="app/templates")
 
 @router.get("/", response_class=HTMLResponse)
 async def root(request: Request, access_token: str | None = Cookie(default=None)):
-    """Landing route: send logged-in users to their dashboard, everyone
-    else to the login page.
+    """Landing route: serve the landing page with product information.
+    If already logged in, the landing page will show a "Go to Dashboard" button.
     """
-    if access_token and decode_access_token(access_token):
-        return RedirectResponse(url="/dashboard")
-    return RedirectResponse(url="/login")
+    is_logged_in = bool(access_token and decode_access_token(access_token))
+    return templates.TemplateResponse("landing.html", {"request": request, "is_logged_in": is_logged_in})
 
 
 @router.get("/login", response_class=HTMLResponse)
@@ -63,3 +62,23 @@ async def chat_page(request: Request, access_token: str | None = Cookie(default=
     if not access_token or not decode_access_token(access_token):
         return RedirectResponse(url="/login")
     return templates.TemplateResponse("chat.html", {"request": request})
+
+
+@router.get("/timeline", response_class=HTMLResponse)
+async def timeline_page(request: Request, access_token: str | None = Cookie(default=None)):
+    """The unified health timeline page (Phase 2 feature)."""
+    if not access_token or not decode_access_token(access_token):
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("timeline.html", {"request": request})
+@router.get("/report", response_class=HTMLResponse)
+async def report_page(request: Request, access_token: str | None = Cookie(default=None)):
+    """Weekly adherence report (printable)."""
+    if not access_token or not decode_access_token(access_token):
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("report.html", {"request": request})
+
+
+@router.get("/caregiver/{username}", response_class=HTMLResponse)
+async def caregiver_page(request: Request, username: str):
+    """Public read-only timeline for caregivers/family."""
+    return templates.TemplateResponse("caregiver.html", {"request": request, "patient_username": username})

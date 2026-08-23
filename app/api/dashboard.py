@@ -19,13 +19,16 @@ kind of judgment call that flow exists for.
 """
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
+import csv
+import io
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user
 from app.core.schemas import DosageCreate, DosageUpdate, MedicineCreate, MedicineUpdate, RecordUpdate
-from app.db.models import Appointment, Dosage, MedicalRecord, Medicine, User
+from app.db.models import Appointment, Dosage, MedicalRecord, Medicine, User, MedicationLog
 from app.db.session import get_db
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
@@ -49,8 +52,12 @@ async def list_medicines(user: User = Depends(get_current_user), db: AsyncSessio
     return [
         {
             "id": m.id, "name": m.name, "strength": m.strength, "notes": m.notes,
+            "supply_count": m.supply_count, "refill_threshold": m.refill_threshold,
             "dosages": [
-                {"id": d.id, "amount": d.amount, "frequency": d.frequency, "time_of_day": d.time_of_day}
+                {
+                    "id": d.id, "amount": d.amount, "frequency": d.frequency, 
+                    "time_of_day": d.time_of_day, "consumption_instructions": d.consumption_instructions
+                }
                 for d in m.dosages if d.is_active
             ],
         }
@@ -63,11 +70,89 @@ async def create_medicine(payload: MedicineCreate, user: User = Depends(get_curr
     """Directly create a medicine (no agent, no approval step -- see the
     module docstring above for why).
     """
-    med = Medicine(user_id=user.id, name=payload.name, strength=payload.strength, notes=payload.notes)
+    # 1. Mock Interaction Check (Phase 3 feature)
+    # Get user's existing active medicines
+    result = await db.execute(select(Medicine).where(Medicine.user_id == user.id, Medicine.is_active == True))
+    existing_meds = [m.name.lower() for m in result.scalars().all()]
+    
+    warning = None
+    new_med_lower = payload.name.lower()
+    
+    # Very basic static mock dictionary for demo purposes
+    mock_interactions = {
+        ("metformin", "insulin"): "Potential risk of hypoglycemia. Monitor blood sugar closely.",
+        ("ibuprofen", "lisinopril"): "NSAIDs can reduce the effect of blood pressure medication and affect kidneys.",
+        ("warfarin", "aspirin"): "Increased risk of bleeding."
+    }
+    
+    for existing in existing_meds:
+        pair1 = (new_med_lower, existing)
+        pair2 = (existing, new_med_lower)
+        if pair1 in mock_interactions:
+            warning = mock_interactions[pair1]
+            break
+        elif pair2 in mock_interactions:
+            warning = mock_interactions[pair2]
+            break
+
+    # 2. Add the medicine
+    med = Medicine(user_id=user.id, name=payload.name, strength=payload.strength, notes=payload.notes, supply_count=payload.supply_count, refill_threshold=payload.refill_threshold)
     db.add(med)
     await db.commit()
     await db.refresh(med)
-    return {"id": med.id, "name": med.name, "strength": med.strength, "notes": med.notes}
+    return {
+        "id": med.id, "name": med.name, "strength": med.strength, 
+        "notes": med.notes, "supply_count": med.supply_count, 
+        "refill_threshold": med.refill_threshold,
+        "warning": warning
+    }
+
+
+# ==================== Export ====================
+
+@router.get("/medicines/export")
+async def export_medicines_csv(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(Medicine).where(Medicine.user_id == user.id, Medicine.is_active == True).options(selectinload(Medicine.dosages))
+    )
+    medicines = result.scalars().all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Medicine Name", "Strength", "Notes", "Supply Count", "Amount", "Frequency", "Time of Day", "Consumption Instructions"])
+    
+    for m in medicines:
+        if m.dosages:
+            for d in m.dosages:
+                if d.is_active:
+                    writer.writerow([m.name, m.strength or "", m.notes or "", m.supply_count or "", d.amount, d.frequency, d.time_of_day or "", d.consumption_instructions or ""])
+        else:
+            writer.writerow([m.name, m.strength or "", m.notes or "", m.supply_count or "", "", "", "", ""])
+
+    output.seek(0)
+    response = StreamingResponse(iter([output.getvalue()]), media_type="text/csv")
+    response.headers["Content-Disposition"] = "attachment; filename=medicines_export.csv"
+    return response
+
+# ==================== Wearable Sync (Mock) ====================
+
+@router.post("/sync-wearable")
+async def sync_wearable(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Mock endpoint to simulate syncing data from Apple Health / Fitbit."""
+    import random
+    hr_drop = random.randint(2, 6)
+    
+    # Create a notification with the mock insight
+    db.add(Notification(
+        user_id=user.id,
+        notification_type="wearable_insight",
+        title="Apple Health Sync Complete",
+        body=f"Your average resting heart rate dropped by {hr_drop} bpm this week! Your consistent medication adherence is paying off.",
+    ))
+    await db.commit()
+    
+    return {"status": "success", "message": f"Heart rate improved by {hr_drop} bpm."}
+
 
 
 @router.put("/medicines/{medicine_id}")
@@ -115,11 +200,11 @@ async def create_dosage(payload: DosageCreate, user: User = Depends(get_current_
     if not med_result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Medicine not found")
 
-    dosage = Dosage(medicine_id=payload.medicine_id, amount=payload.amount, frequency=payload.frequency, time_of_day=payload.time_of_day)
+    dosage = Dosage(medicine_id=payload.medicine_id, amount=payload.amount, frequency=payload.frequency, time_of_day=payload.time_of_day, consumption_instructions=payload.consumption_instructions)
     db.add(dosage)
     await db.commit()
     await db.refresh(dosage)
-    return {"id": dosage.id, "amount": dosage.amount, "frequency": dosage.frequency, "time_of_day": dosage.time_of_day}
+    return {"id": dosage.id, "amount": dosage.amount, "frequency": dosage.frequency, "time_of_day": dosage.time_of_day, "consumption_instructions": dosage.consumption_instructions}
 
 
 @router.put("/dosages/{dosage_id}")
@@ -215,3 +300,37 @@ async def list_appointments(user: User = Depends(get_current_user), db: AsyncSes
         }
         for a in appts
     ]
+
+
+# ==================== Adherence ====================
+
+from pydantic import BaseModel
+
+class AdherenceCreate(BaseModel):
+    dosage_id: str
+    status: str = "taken"
+
+@router.post("/adherence")
+async def log_adherence(payload: AdherenceCreate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    # Verify dosage belongs to user
+    result = await db.execute(select(Dosage).join(Medicine).where(Dosage.id == payload.dosage_id, Medicine.user_id == user.id))
+    dosage = result.scalar_one_or_none()
+    if not dosage:
+        raise HTTPException(status_code=404, detail="Dosage not found")
+    
+    log = MedicationLog(user_id=user.id, medicine_id=dosage.medicine_id, dosage_id=dosage.id, status=payload.status)
+    db.add(log)
+    
+    # Only deduct if taken
+    if payload.status == "taken" and dosage.medicine.supply_count is not None and dosage.medicine.supply_count > 0:
+        dosage.medicine.supply_count -= 1
+        
+    await db.commit()
+    return {"status": "success", "taken_at": log.taken_at.isoformat()}
+
+@router.get("/adherence")
+async def get_adherence_logs(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(MedicationLog).where(MedicationLog.user_id == user.id).order_by(MedicationLog.taken_at.asc()))
+    logs = result.scalars().all()
+    return [{"id": l.id, "medicine_id": l.medicine_id, "dosage_id": l.dosage_id, "status": l.status, "taken_at": l.taken_at.isoformat()} for l in logs]
+

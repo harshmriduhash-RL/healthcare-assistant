@@ -18,7 +18,7 @@ from datetime import datetime, timedelta, timezone
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import select
 
-from app.db.models import Appointment, Dosage, Medicine, Notification
+from app.db.models import Appointment, Dosage, Medicine, Notification, User
 from app.db.session import AsyncSessionLocal
 
 logger = logging.getLogger("scheduler")
@@ -97,8 +97,9 @@ async def check_dosages_due() -> None:
                 user_id=medicine.user_id,
                 notification_type="dosage_due",
                 title=f"Time to take {medicine.name}",
-                body=f"{dosage.amount} - {dosage.frequency}",
+                body=f"{dosage.amount} - {dosage.frequency}" + (f" ({dosage.consumption_instructions})" if dosage.consumption_instructions else ""),
                 related_id=dosage.id,
+                action_payload={"action": "mark_taken", "dosage_id": dosage.id, "medicine_id": medicine.id}
             ))
         await db.commit()
 
@@ -153,6 +154,85 @@ async def check_upcoming_appointments() -> None:
             ))
         await db.commit()
 
+async def check_pre_appointment_prep() -> None:
+    """Job: find confirmed appointments happening in the next 48h and prompt for prep."""
+    now = datetime.now(timezone.utc)
+    window_start = now + timedelta(hours=24)
+    window_end = now + timedelta(hours=48)
+
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(Appointment).where(
+                Appointment.status == "confirmed",
+                Appointment.scheduled_for >= window_start,
+                Appointment.scheduled_for <= window_end,
+            )
+        )
+        appointments = result.scalars().all()
+
+        for appt in appointments:
+            if await _already_notified_recently(db, appt.user_id, "pre_appointment_prep", appt.id, within_minutes=24 * 60):
+                continue
+
+            db.add(Notification(
+                user_id=appt.user_id,
+                notification_type="pre_appointment_prep",
+                title=f"Prepare for your visit with {appt.doctor_name}",
+                body="Any recent symptoms to note? Make sure to upload your latest lab reports before the visit.",
+                related_id=appt.id,
+            ))
+        await db.commit()
+
+
+async def check_low_supply() -> None:
+    """Job: scan active medicines and notify if supply_count drops below refill_threshold."""
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(Medicine).where(Medicine.is_active == True, Medicine.supply_count != None, Medicine.refill_threshold != None) # noqa: E711
+        )
+        medicines = result.scalars().all()
+        for medicine in medicines:
+            if medicine.supply_count <= medicine.refill_threshold:
+                if await _already_notified_recently(db, medicine.user_id, "low_supply", medicine.id, within_minutes=24 * 60):
+                    continue
+                db.add(Notification(
+                    user_id=medicine.user_id,
+                    notification_type="low_supply",
+                    title=f"Low Supply: {medicine.name}",
+                    body=f"You have {medicine.supply_count} doses left. Time to refill!",
+                    related_id=medicine.id,
+                    action_payload={"action": "request_refill", "medicine_id": medicine.id}
+                ))
+        await db.commit()
+
+
+async def generate_daily_digest() -> None:
+    """Job: scan active users and generate a Daily Health Digest in the morning."""
+    now = datetime.now(timezone.utc)
+    # Only run between 7AM and 9AM UTC (or appropriate local time, simplified for prototype)
+    if not (7 <= now.hour <= 9):
+        return
+
+    async with AsyncSessionLocal() as db:
+        # Get all users who have active medicines or appointments today
+        result = await db.execute(select(User.id))
+        user_ids = result.scalars().all()
+
+        for uid in user_ids:
+            if await _already_notified_recently(db, uid, "daily_digest", "digest", within_minutes=12 * 60):
+                continue
+            
+            # Simple summary for prototype
+            # In a real app, query today's doses and appointments to build the string
+            db.add(Notification(
+                user_id=uid,
+                notification_type="daily_digest",
+                title="Daily Health Digest",
+                body="Check your dashboard for today's doses, appointments, and adherence streaks.",
+                related_id="digest"
+            ))
+        await db.commit()
+
 
 # Module-level singleton so start_scheduler()/stop_scheduler() can be called
 # from FastAPI's lifespan without needing to pass a scheduler instance around.
@@ -177,6 +257,9 @@ def start_scheduler() -> AsyncIOScheduler:
     # to look the job up later to pause/modify it).
     _scheduler.add_job(check_dosages_due, "interval", minutes=DOSAGE_CHECK_INTERVAL_MINUTES, id="dosage_check")
     _scheduler.add_job(check_upcoming_appointments, "interval", minutes=APPOINTMENT_CHECK_INTERVAL_MINUTES, id="appointment_check")
+    _scheduler.add_job(check_pre_appointment_prep, "interval", minutes=60, id="pre_appointment_prep")
+    _scheduler.add_job(check_low_supply, "interval", minutes=60, id="low_supply_check")
+    _scheduler.add_job(generate_daily_digest, "interval", minutes=60, id="daily_digest_check")
     _scheduler.start()
     logger.info("Scheduler started: dosage checks every %sm, appointment checks every %sm",
                 DOSAGE_CHECK_INTERVAL_MINUTES, APPOINTMENT_CHECK_INTERVAL_MINUTES)

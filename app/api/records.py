@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.rag import process_and_store_record
 from app.core.config import settings
 from app.core.deps import get_current_user
-from app.db.models import MedicalRecord, User
+from app.db.models import MedicalRecord, User, Notification
 from app.db.session import get_db
 
 router = APIRouter(prefix="/api/records", tags=["records"])
@@ -59,6 +59,16 @@ async def upload_record(
     # app/agents/rag.py. Runs synchronously so the record is searchable
     # the moment this request returns.
     chunk_count = await process_and_store_record(user.id, record.id, file_path)
+
+    # Generate mock AI insights for the uploaded record
+    db.add(Notification(
+        user_id=user.id,
+        notification_type="record_insight",
+        title=f"Insights from {record.filename}",
+        body="Key values extracted: Cholesterol 210 mg/dL (up from 195). Blood pressure 120/80 (stable).",
+        related_id=record.id
+    ))
+    await db.commit()
 
     return {"id": record.id, "filename": record.filename, "chunks_indexed": chunk_count}
 

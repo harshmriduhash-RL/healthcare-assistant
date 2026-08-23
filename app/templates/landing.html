@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+{% block title %}CarePilot — Your health, guided by AI, approved by you{% endblock %}
+{% block body_class %}landing-page{% endblock %}
+{% block content %}
+{% include "partials/navbar.html" %}
+
+<!-- Hero -->
+<section class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-inner">
+        <div class="hero-content animate-fade-in-up">
+            <span class="hero-badge">Multi-agent AI for everyday health management</span>
+            <h1>Your personal <span class="text-gradient">care team</span>, always in your control</h1>
+            <p class="hero-value-line">
+                CarePilot is a team of specialized AI agents that manage your medicines, dosage schedules,
+                medical records, and doctor appointments — with one hard rule: <strong>nothing changes until you approve it.</strong>
+            </p>
+            <div class="hero-actions">
+                {% if is_logged_in %}
+                <a href="/dashboard" class="btn btn-primary btn-lg">Go to Dashboard</a>
+                <a href="/chat" class="btn btn-outline btn-lg">Talk to Assistant</a>
+                {% else %}
+                <a href="/signup" class="btn btn-primary btn-lg">Get started free</a>
+                <a href="/login" class="btn btn-outline btn-lg">Log in</a>
+                {% endif %}
+            </div>
+            <div class="hero-trust">
+                <span>&#10003; Human approval on every AI action</span>
+                <span>&#10003; Your data stays private</span>
+                <span>&#10003; No medical diagnosis</span>
+            </div>
+        </div>
+        <div class="hero-visual animate-fade-in-up delay-1">
+            <div class="hero-mockup">
+                <div class="mockup-header">
+                    <span class="mockup-dot"></span><span class="mockup-dot"></span><span class="mockup-dot"></span>
+                    <span class="mockup-title">CarePilot Assistant</span>
+                </div>
+                <div class="mockup-body">
+                    <div class="mockup-msg user">Add my metformin 500mg twice daily</div>
+                    <div class="mockup-msg agent">
+                        <span class="mockup-agent-tag">Medicine Agent</span>
+                        Proposing: add Metformin 500mg
+                    </div>
+                    <div class="mockup-approval">
+                        <p>Awaiting your approval</p>
+                        <div class="mockup-btns">
+                            <span class="mockup-btn approve">Approve</span>
+                            <span class="mockup-btn edit">Edit</span>
+                            <span class="mockup-btn reject">Reject</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Value proposition -->
+<section class="section value-strip">
+    <div class="container">
+        <div class="value-grid">
+            <div class="value-item">
+                <div class="value-number">4</div>
+                <div class="value-label">Specialized AI agents</div>
+                <p>Medicine, dosage, records, and appointment agents — each focused on one job.</p>
+            </div>
+            <div class="value-item">
+                <div class="value-number">100%</div>
+                <div class="value-label">Human-in-the-loop</div>
+                <p>Every write to your health record requires your explicit approval. Built into the architecture.</p>
+            </div>
+            <div class="value-item">
+                <div class="value-number">24/7</div>
+                <div class="value-label">Always available</div>
+                <p>Track adherence, search records, and manage care on your schedule — day or night.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- What it does -->
+<section class="section section-alt" id="about">
+    <div class="container">
+        <div class="section-header centered">
+            <span class="section-eyebrow">What CarePilot does</span>
+            <h2>One assistant. Four specialists. You stay in charge.</h2>
+            <p class="section-lead">
+                Instead of one chatbot guessing at everything, CarePilot routes your request to the right
+                specialist agent — then pauses and asks for your approval before anything is saved.
+            </p>
+        </div>
+        <div class="agent-flow">
+            <div class="agent-flow-step">
+                <div class="flow-icon">1</div>
+                <h3>You ask in plain English</h3>
+                <p>"Add my blood pressure medicine" or "What did my last lab report say about cholesterol?"</p>
+            </div>
+            <div class="flow-arrow">&rarr;</div>
+            <div class="agent-flow-step">
+                <div class="flow-icon">2</div>
+                <h3>The right agent handles it</h3>
+                <p>A supervisor routes to Medicine, Dosage, Records, or Appointment agents based on your request.</p>
+            </div>
+            <div class="flow-arrow">&rarr;</div>
+            <div class="agent-flow-step">
+                <div class="flow-icon">3</div>
+                <h3>You review &amp; approve</h3>
+                <p>Proposed changes appear as an approval card. Approve, edit, or reject — your call, every time.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- How it works -->
+<section class="section" id="how-it-works">
+    <div class="container">
+        <div class="section-header centered">
+            <span class="section-eyebrow">How it works</span>
+            <h2>Safe by design, not just by prompt</h2>
+            <p class="section-lead">CarePilot's safety isn't a suggestion in an AI prompt — it's enforced by the system architecture itself.</p>
+        </div>
+        <div class="steps-grid">
+            <div class="step-card">
+                <div class="step-num">01</div>
+                <h3>Sign up &amp; set up</h3>
+                <p>Create your account, add medicines on the dashboard, or upload medical record PDFs for instant search.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-num">02</div>
+                <h3>Chat with your assistant</h3>
+                <p>Ask in natural language. The AI understands context and proposes structured actions — never executes silently.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-num">03</div>
+                <h3>Approve every change</h3>
+                <p>Review proposed medicines, dosages, or appointments. Edit values inline before approving if needed.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-num">04</div>
+                <h3>Track &amp; stay on schedule</h3>
+                <p>Mark doses taken, view adherence history, get refill alerts, and receive appointment reminders.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Who it's for -->
+<section class="section section-alt" id="who-its-for">
+    <div class="container">
+        <div class="section-header centered">
+            <span class="section-eyebrow">Who it's for</span>
+            <h2>Built for people who manage their own health every day</h2>
+        </div>
+        <div class="persona-grid">
+            <div class="persona-card">
+                <div class="persona-icon">&#128138;</div>
+                <h3>Chronic condition managers</h3>
+                <p>Managing multiple prescriptions with different schedules? CarePilot tracks dosages, sends reminders, and alerts you before refills run out.</p>
+            </div>
+            <div class="persona-card">
+                <div class="persona-icon">&#128203;</div>
+                <h3>Health record keepers</h3>
+                <p>Upload lab reports and prescriptions as PDFs. Ask "what was my cholesterol last time?" and get answers grounded in your actual documents.</p>
+            </div>
+            <div class="persona-card">
+                <div class="persona-icon">&#128197;</div>
+                <h3>Appointment organizers</h3>
+                <p>Schedule follow-ups through the assistant — but only when you explicitly ask. No surprise bookings, ever.</p>
+            </div>
+            <div class="persona-card">
+                <div class="persona-icon">&#128106;</div>
+                <h3>Caregivers &amp; family helpers</h3>
+                <p>Help a parent or loved one stay on track. Clear adherence history and exportable medicine lists keep everyone aligned.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features -->
+<section class="section" id="features">
+    <div class="container">
+        <div class="section-header centered">
+            <span class="section-eyebrow">Features</span>
+            <h2>Everything you need to stay on top of your health</h2>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon feature-icon-teal">&#128172;</div>
+                <h3>Multi-agent AI chat</h3>
+                <p>Specialized agents for medicines, dosages, records, and appointments — coordinated by a supervisor, gated by your approval.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon feature-icon-green">&#128197;</div>
+                <h3>Adherence tracker</h3>
+                <p>GitHub-style calendar showing taken and missed doses. Mark doses with one click and build a visible streak over time.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon feature-icon-blue">&#128196;</div>
+                <h3>Semantic record search</h3>
+                <p>Upload PDFs — lab results, prescriptions, imaging reports. Ask questions and get answers from your actual documents.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon feature-icon-amber">&#9888;</div>
+                <h3>Refill &amp; supply alerts</h3>
+                <p>Set supply counts and refill thresholds. Get notified before you run out, so you're never caught without your medication.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon feature-icon-purple">&#128274;</div>
+                <h3>Human-in-the-loop safety</h3>
+                <p>Every agent-proposed write pauses for your approval. Edit values before saving. Reject anything you don't want.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon feature-icon-red">&#128737;</div>
+                <h3>Clinical guardrails</h3>
+                <p>Prompt-injection and diagnosis requests are blocked before any agent sees them. CarePilot never gives medical advice.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Safety -->
+<section class="section safety-section">
+    <div class="container">
+        <div class="safety-inner">
+            <div class="safety-content">
+                <span class="section-eyebrow">Why CarePilot is different</span>
+                <h2>AI that proposes. You that decides.</h2>
+                <p>Most health AI demos let the model write directly to your data. CarePilot can't — the system architecture physically prevents any agent from saving changes without your explicit approval. Every action is logged with a full audit trail you can review anytime.</p>
+                <ul class="safety-list">
+                    <li>Structural human-in-the-loop — not just a prompt instruction</li>
+                    <li>Full audit trace on every conversation turn</li>
+                    <li>Input guardrails block diagnosis and prompt injection</li>
+                    <li>Direct dashboard edits when you want full control — no AI middleman</li>
+                </ul>
+            </div>
+            <div class="safety-visual">
+                <div class="audit-preview">
+                    <div class="audit-line"><span class="audit-time">09:14:02</span> Guardrail &rarr; allowed (12ms)</div>
+                    <div class="audit-line"><span class="audit-time">09:14:03</span> Supervisor &rarr; medicine_agent (340ms)</div>
+                    <div class="audit-line"><span class="audit-time">09:14:04</span> Medicine Agent &rarr; propose add_medicine (890ms)</div>
+                    <div class="audit-line audit-highlight"><span class="audit-time">09:14:18</span> Human &rarr; approved (—)</div>
+                    <div class="audit-line"><span class="audit-time">09:14:18</span> Execute &rarr; add_medicine saved (45ms)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+<section class="section cta-section">
+    <div class="container">
+        <div class="cta-inner">
+            <h2>Ready to take control of your health routine?</h2>
+            <p>Join CarePilot today. Free to use. Your data stays yours. No credit card required.</p>
+            <div class="cta-actions">
+                {% if is_logged_in %}
+                <a href="/dashboard" class="btn btn-white btn-lg">Open Dashboard</a>
+                {% else %}
+                <a href="/signup" class="btn btn-white btn-lg">Create free account</a>
+                <a href="/login" class="btn btn-outline-white btn-lg">Log in</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+{% include "partials/footer.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('navbar-toggle')?.addEventListener('click', () => {
+    document.getElementById('navbar-links').classList.toggle('open');
+});
+</script>
+{% endblock %}

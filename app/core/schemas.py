@@ -53,6 +53,8 @@ class MedicineCreate(BaseModel):
     name: str
     strength: str | None = None  # e.g. "500mg" -- free text, not a structured unit
     notes: str | None = None
+    supply_count: int | None = None
+    refill_threshold: int | None = None
 
 
 class MedicineUpdate(BaseModel):
@@ -63,6 +65,8 @@ class MedicineUpdate(BaseModel):
     name: str | None = None
     strength: str | None = None
     notes: str | None = None
+    supply_count: int | None = None
+    refill_threshold: int | None = None
 
 
 class DosageCreate(BaseModel):
@@ -70,12 +74,14 @@ class DosageCreate(BaseModel):
     amount: str  # e.g. "5mg", "1 tablet" -- kept as free text for flexibility
     frequency: str  # e.g. "daily", "twice a day"
     time_of_day: str | None = None  # comma-separated 24h times, e.g. "08:00,20:00"
+    consumption_instructions: str | None = None
 
 
 class DosageUpdate(BaseModel):
     amount: str | None = None
     frequency: str | None = None
     time_of_day: str | None = None
+    consumption_instructions: str | None = None
 
 
 class RecordUpdate(BaseModel):

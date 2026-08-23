@@ -1,315 +1,379 @@
-<!--
-  Dashboard page: shows medicines (with dosages), appointments, medical
-  records, and reminders, all in one glance after login.
-
-  Everything on this page is rendered client-side by vanilla JavaScript
-  (no server-side templating of the actual data -- Jinja2 just serves the
-  static page shell). Each section below has a load*() function that
-  fetches JSON from an /api/dashboard/* or /api/records/* or
-  /api/notifications/* route and builds DOM elements from it.
-
-  IMPORTANT DISTINCTION from /chat: every write here (add/edit/delete a
-  medicine, dosage, or record) happens IMMEDIATELY on button click -- there
-  is NO approval-card / human-in-the-loop step on this page, because
-  there's no AI agent proposing anything here. The user is directly
-  editing their own data. Contrast with app/templates/chat.html, where
-  writes go through an agent + approval flow. See app/api/dashboard.py's
-  module docstring for the full reasoning.
--->
 {% extends "base.html" %}
-{% block title %}Dashboard — Healthcare AI{% endblock %}
+{% block title %}Dashboard — CarePilot{% endblock %}
+{% block body_class %}app-page{% endblock %}
 {% block content %}
 <div class="app-shell">
-    <div class="sidebar">
-        <h2>🩺 Health AI</h2>
-        <a href="/dashboard" class="active">Dashboard</a>
-        <a href="/chat">Chat with Assistant</a>
-        <a href="#" id="notif-toggle">🔔 Reminders <span id="notif-badge" class="badge" style="display:none;"></span></a>
-        <a href="#" id="logout-link">Log out</a>
-    </div>
-    <div class="main-content">
-        <h1>Your Health Overview</h1>
-        <p style="color:#64748b;font-size:13px;margin-top:-16px;margin-bottom:24px;">
-            Direct edits here are yours alone — no approval step, since you're the human already making the decision.
-            Use <a href="/chat">chat</a> if you'd rather have the assistant propose changes for you to approve.
-        </p>
+    {% set active_page = 'dashboard' %}
+    {% include "partials/app_sidebar.html" %}
+    <div class="main-content" id="main-content">
+        <div class="main-header">
+            <button class="hamburger" id="sidebar-open" title="Open sidebar" aria-label="Open sidebar">&#9776;</button>
+            <div>
+                <h1 id="welcome-heading">Your Health Overview</h1>
+                <p class="page-subtitle">Manage medicines, track adherence, and keep your records organized.</p>
+            </div>
+        </div>
 
-        <!-- Hidden by default; toggled open by the "Reminders" sidebar link -->
+        <!-- Stats row -->
+        <div class="stats-grid" id="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon stat-icon-teal">&#128138;</div>
+                <div class="stat-body">
+                    <div class="stat-value" id="stat-meds">—</div>
+                    <div class="stat-label">Active medicines</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon stat-icon-blue">&#128197;</div>
+                <div class="stat-body">
+                    <div class="stat-value" id="stat-appts">—</div>
+                    <div class="stat-label">Upcoming appointments</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon stat-icon-green">&#10003;</div>
+                <div class="stat-body">
+                    <div class="stat-value" id="stat-adherence">—</div>
+                    <div class="stat-label">Doses taken (30 days)</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon stat-icon-purple">&#128196;</div>
+                <div class="stat-body">
+                    <div class="stat-value" id="stat-records">—</div>
+                    <div class="stat-label">Medical records</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-banner">
+            <strong>Tip:</strong> Direct edits here save immediately — no approval step needed.
+            Use the <a href="/chat">AI Assistant</a> if you'd rather have an agent propose changes for you to review.
+        </div>
+
         <div class="card" id="notifications-card" style="display:none;">
-            <h3>Reminders</h3>
+            <div class="card-header">
+                <h3>Reminders</h3>
+            </div>
             <div id="notifications-list"></div>
         </div>
 
-        <!-- Quick-add form for a new medicine. Submitting POSTs straight
-             to /api/dashboard/medicines and re-renders the list below. -->
         <div class="card">
-            <h3>Add a medicine</h3>
-            <form id="add-medicine-form" style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;">
-                <input type="text" id="new-med-name" placeholder="Medicine name" required style="flex:1;min-width:160px;margin-bottom:0;">
-                <input type="text" id="new-med-strength" placeholder="Strength (e.g. 500mg)" style="flex:1;min-width:140px;margin-bottom:0;">
-                <input type="text" id="new-med-notes" placeholder="Notes (optional)" style="flex:2;min-width:160px;margin-bottom:0;">
-                <button type="submit" class="btn-primary" style="width:auto;padding:10px 18px;">Add</button>
+            <div class="card-header">
+                <h3>Add a medicine</h3>
+            </div>
+            <form id="add-medicine-form" class="form-row">
+                <input type="text" id="new-med-name" placeholder="Medicine name" required>
+                <input type="text" id="new-med-strength" placeholder="Strength (e.g. 500mg)">
+                <input type="number" id="new-med-supply" placeholder="Total supply">
+                <input type="number" id="new-med-refill" placeholder="Refill alert at">
+                <input type="text" id="new-med-notes" placeholder="Notes (optional)">
+                <button type="submit" class="btn btn-primary">Add medicine</button>
             </form>
         </div>
 
-        <!-- Populated by loadMedicines() below: one card per medicine,
-             each with its dosages nested inside and Edit/Delete controls. -->
         <div class="card">
-            <h3>Medicines</h3>
-            <div id="medicines-list" class="grid"><p class="thinking">Loading…</p></div>
+            <div class="card-header">
+                <h3>Medicines</h3>
+                <div>
+                    <button class="btn btn-secondary btn-sm" id="sync-wearable-btn" style="margin-right: 8px;">Sync Apple Health</button>
+                    <a href="/api/dashboard/medicines/export" class="btn btn-secondary btn-sm" target="_blank">Export CSV</a>
+                </div>
+            </div>
+            <div id="medicines-list"><p class="thinking">Loading…</p></div>
         </div>
 
-        <!-- Read-only by design -- appointments can only be created via
-             the chat assistant's HITL-gated flow, never edited directly here. -->
         <div class="card">
-            <h3>Upcoming Appointments</h3>
-            <p style="color:#64748b;font-size:13px;margin-top:-8px;">Scheduling goes through the assistant (chat) with your approval — not editable directly here.</p>
+            <div class="card-header">
+                <h3>Adherence tracker</h3>
+                <span class="card-hint">Last 3 months</span>
+            </div>
+            <div id="adherence-calendar"></div>
+            <div class="adherence-legend">
+                <span><span class="legend-dot grid-level-0"></span> No data</span>
+                <span><span class="legend-dot grid-level-3"></span> Taken</span>
+                <span><span class="legend-dot grid-missed"></span> Missed</span>
+            </div>
+        </div>
+
+        <dialog id="dosage-modal" class="modal-dialog">
+            <h3>Add dosage</h3>
+            <form method="dialog" id="dosage-form" class="form-stack">
+                <input type="hidden" id="d-modal-med-id">
+                <label>Amount</label>
+                <input type="text" id="d-modal-amount" placeholder="e.g. 5mg, 1 tablet" required>
+                <label>Frequency</label>
+                <input type="text" id="d-modal-freq" placeholder="e.g. daily, twice daily" required>
+                <label>Time of day</label>
+                <input type="text" id="d-modal-time" placeholder="e.g. 08:00, 20:00">
+                <label>Instructions</label>
+                <input type="text" id="d-modal-inst" placeholder="e.g. before food">
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('dosage-modal').close()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save dosage</button>
+                </div>
+            </form>
+        </dialog>
+
+        <div class="card">
+            <div class="card-header">
+                <h3>Upcoming appointments</h3>
+            </div>
+            <p class="card-note">Scheduling goes through the <a href="/chat">AI Assistant</a> with your approval — not editable directly here.</p>
             <div id="appointments-list"><p class="thinking">Loading…</p></div>
         </div>
 
-        <!-- Upload triggers both file storage AND semantic indexing
-             server-side (see app/api/records.py's /upload route) -->
         <div class="card">
-            <h3>Medical Records</h3>
-            <input type="file" id="record-file" accept="application/pdf">
-            <button class="btn-primary" style="width:auto;padding:8px 16px;" id="upload-btn">Upload PDF</button>
-            <div id="records-list" style="margin-top:12px;"></div>
+            <div class="card-header">
+                <h3>Medical records</h3>
+            </div>
+            <p class="card-note">Upload PDFs to make them searchable by the AI assistant.</p>
+            <div class="upload-row">
+                <input type="file" id="record-file" accept="application/pdf">
+                <button class="btn btn-primary btn-sm" id="upload-btn">Upload PDF</button>
+            </div>
+            <div id="records-list" class="records-list"></div>
         </div>
     </div>
 </div>
 {% endblock %}
 {% block scripts %}
 <script>
-// Small helper: builds a labeled text input pre-filled with `value`, used
-// by the medicine "Edit" form below. Escapes double-quotes in the value
-// so it doesn't break out of the HTML attribute it's inserted into.
 function fieldRow(label, value) {
     return `<label style="display:block;font-size:11px;color:#64748b;margin:6px 0 2px;">${label}</label>
             <input type="text" value="${value === null || value === undefined ? '' : String(value).replace(/"/g, '&quot;')}" style="margin-bottom:0;">`;
 }
 
-// Fetches this user's medicines (each with nested dosages, from
-// /api/dashboard/medicines) and rebuilds the whole medicines-list section
-// from scratch. Called on page load and after every add/edit/delete so
-// the UI always reflects the latest server state (simple, if not the most
-// efficient approach -- fine for a prototype's data volumes).
+async function loadUser() {
+    try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+            const user = await res.json();
+            const displayName = user.username.split('@')[0];
+            // Capitalize first letter
+            const capitalizedName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
+            document.getElementById('welcome-heading').textContent = `Welcome back, ${capitalizedName}`;
+        }
+    } catch (_) {}
+}
+
+function updateStats(meds, appts, logs, records) {
+    document.getElementById('stat-meds').textContent = meds.length;
+    document.getElementById('stat-appts').textContent = appts.length;
+    document.getElementById('stat-records').textContent = records.length;
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const taken = logs.filter(l => l.status === 'taken' && new Date(l.taken_at).getTime() > thirtyDaysAgo).length;
+    document.getElementById('stat-adherence').textContent = taken;
+}
+
 async function loadMedicines() {
     const res = await fetch('/api/dashboard/medicines');
     const meds = await res.json();
     const el = document.getElementById('medicines-list');
-    el.innerHTML = meds.length ? '' : '<p style="color:#64748b;font-size:14px;">No medicines yet.</p>';
+    if (!meds.length) {
+        el.innerHTML = '<p class="empty-state">No medicines yet. Add one above or ask the AI assistant.</p>';
+        return;
+    }
+
+    let tableHtml = `<div class="table-wrap"><table>
+        <thead><tr><th>Medicine</th><th>Supply</th><th>Dosages</th><th>Actions</th></tr></thead><tbody>`;
 
     meds.forEach(m => {
-        // One card per medicine, built as a DOM element (not just an
-        // HTML string) so we can attach event listeners to its buttons
-        // via querySelector after inserting it.
-        const card = document.createElement('div');
-        card.className = 'card';
-        card.innerHTML = `
-            <span class="badge">Medicine</span>
-            <div class="med-view">
-                <h4 style="margin:8px 0 4px;">${m.name} ${m.strength || ''}</h4>
-                <p style="font-size:13px;color:#64748b;">${m.notes || ''}</p>
-                <div class="dosage-list" style="font-size:13px;margin:8px 0;"></div>
-                <div style="display:flex;gap:6px;margin-top:8px;">
-                    <button class="btn-med-edit" style="padding:6px 12px;font-size:12px;background:#e2e8f0;">Edit</button>
-                    <button class="btn-med-delete" style="padding:6px 12px;font-size:12px;background:#fee2e2;color:#dc2626;">Delete</button>
-                    <button class="btn-dosage-add" style="padding:6px 12px;font-size:12px;background:#dbeafe;color:#1d4ed8;">+ Dosage</button>
-                </div>
+        let dosagesHtml = m.dosages.map(d => `
+            <div class="dosage-row">
+                <span class="dosage-info">
+                    <strong>${d.amount}</strong> · ${d.frequency} ${d.time_of_day ? `(${d.time_of_day})` : ''}
+                    ${d.consumption_instructions ? `<br><span class="text-muted">${d.consumption_instructions}</span>` : ''}
+                </span>
+                <span class="dosage-actions">
+                    <button class="btn btn-success btn-xs btn-dosage-taken" data-did="${d.id}" title="Mark taken">Taken</button>
+                    <button class="btn btn-warning btn-xs btn-dosage-missed" data-did="${d.id}" title="Mark missed">Missed</button>
+                    <button class="btn btn-danger-light btn-xs btn-dosage-delete" data-did="${d.id}">Del</button>
+                </span>
             </div>
-        `;
-        el.appendChild(card);
+        `).join('');
 
-        // --- Render this medicine's dosage rows underneath it ---
-        const dosageListEl = card.querySelector('.dosage-list');
-        m.dosages.forEach(d => {
-            const row = document.createElement('div');
-            row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-top:1px solid #f1f5f9;';
-            row.innerHTML = `<span>${d.amount} · ${d.frequency}${d.time_of_day ? ' · ' + d.time_of_day : ''}</span>
-                <span>
-                    <button class="btn-dosage-edit" style="padding:3px 8px;font-size:11px;background:#e2e8f0;">Edit</button>
-                    <button class="btn-dosage-delete" style="padding:3px 8px;font-size:11px;background:#fee2e2;color:#dc2626;">Del</button>
-                </span>`;
-            dosageListEl.appendChild(row);
+        const lowSupply = m.supply_count !== null && m.supply_count <= (m.refill_threshold || 0);
+        tableHtml += `
+            <tr data-mid="${m.id}">
+                <td>
+                    <strong class="med-name">${m.name} ${m.strength || ''}</strong>
+                    ${m.current_streak > 0 ? `<span class="badge" style="background:#fef08a;color:#854d0e;margin-left:6px;border:1px solid #fde047;">🔥 ${m.current_streak} Day Streak</span>` : ''}
+                    ${m.notes ? `<br><span class="text-muted">${m.notes}</span>` : ''}
+                </td>
+                <td>${m.supply_count !== null ? `<span class="${lowSupply ? 'supply-low' : ''}">${m.supply_count} left</span>` : '—'}</td>
+                <td>${dosagesHtml || '<span class="text-muted">No dosages</span>'}</td>
+                <td class="actions-cell">
+                    <button class="btn btn-primary-light btn-xs btn-dosage-add" data-mid="${m.id}">+ Dose</button>
+                    <button class="btn btn-danger-light btn-xs btn-med-delete" data-mid="${m.id}">Delete</button>
+                </td>
+            </tr>`;
+    });
+    tableHtml += '</tbody></table></div>';
+    el.innerHTML = tableHtml;
 
-            // Delete this dosage -- immediate, no confirmation step beyond
-            // the browser confirm() dialog (there's no HITL gate here).
-            row.querySelector('.btn-dosage-delete').addEventListener('click', async () => {
-                if (!confirm('Delete this dosage?')) return;
-                await fetch(`/api/dashboard/dosages/${d.id}`, { method: 'DELETE' });
-                loadMedicines(); // re-fetch everything to reflect the change
-            });
-
-            // Swap this one row's display into an inline edit form.
-            row.querySelector('.btn-dosage-edit').addEventListener('click', () => {
-                row.innerHTML = `
-                    <div style="width:100%;">
-                        <input type="text" class="d-amount" value="${d.amount}" placeholder="Amount" style="margin-bottom:4px;">
-                        <input type="text" class="d-frequency" value="${d.frequency}" placeholder="Frequency" style="margin-bottom:4px;">
-                        <input type="text" class="d-time" value="${d.time_of_day || ''}" placeholder="Time of day (HH:MM,HH:MM)" style="margin-bottom:4px;">
-                        <button class="d-save" style="padding:4px 10px;font-size:11px;background:#16a34a;color:white;">Save</button>
-                    </div>`;
-                row.querySelector('.d-save').addEventListener('click', async () => {
-                    await fetch(`/api/dashboard/dosages/${d.id}`, {
-                        method: 'PUT',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            amount: row.querySelector('.d-amount').value,
-                            frequency: row.querySelector('.d-frequency').value,
-                            time_of_day: row.querySelector('.d-time').value || null,
-                        }),
-                    });
-                    loadMedicines();
-                });
-            });
-        });
-
-        // --- Medicine-level buttons: delete, edit, add a new dosage ---
-
-        card.querySelector('.btn-med-delete').addEventListener('click', async () => {
-            if (!confirm(`Delete ${m.name} and all its dosages?`)) return;
-            // The backend cascades this delete to all of the medicine's
-            // dosages automatically (see the ORM relationship in
-            // app/db/models.py) -- the frontend doesn't need to delete
-            // dosages separately first.
-            await fetch(`/api/dashboard/medicines/${m.id}`, { method: 'DELETE' });
-            loadMedicines();
-        });
-
-        card.querySelector('.btn-med-edit').addEventListener('click', () => {
-            // Replace the read-only view (.med-view) with an inline edit
-            // form built from fieldRow() above, pre-filled with current values.
-            const view = card.querySelector('.med-view');
-            view.innerHTML = `
-                ${fieldRow('Name', m.name)}
-                ${fieldRow('Strength', m.strength)}
-                ${fieldRow('Notes', m.notes)}
-                <button class="btn-save-med" style="margin-top:8px;padding:6px 14px;font-size:12px;background:#16a34a;color:white;">Save</button>
-            `;
-            const inputs = view.querySelectorAll('input');
-            view.querySelector('.btn-save-med').addEventListener('click', async () => {
-                await fetch(`/api/dashboard/medicines/${m.id}`, {
-                    method: 'PUT',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ name: inputs[0].value, strength: inputs[1].value || null, notes: inputs[2].value || null }),
-                });
-                loadMedicines(); // rebuilds the card back to its read-only view with the new values
-            });
-        });
-
-        // Quick-add a dosage via three browser prompt() dialogs -- simple
-        // and functional for a prototype, though a real form (like the
-        // "Add a medicine" one above) would be friendlier UX.
-        card.querySelector('.btn-dosage-add').addEventListener('click', async () => {
-            const amount = prompt('Amount (e.g. 5mg, 1 tablet)');
-            if (!amount) return;
-            const frequency = prompt('Frequency (e.g. daily, twice a day)') || 'daily';
-            const time_of_day = prompt('Time of day, comma-separated 24h HH:MM (optional)') || null;
-            await fetch('/api/dashboard/dosages', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ medicine_id: m.id, amount, frequency, time_of_day }),
-            });
-            loadMedicines();
+    el.querySelectorAll('.btn-med-delete').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            if (!confirm('Delete this medicine?')) return;
+            await fetch(`/api/dashboard/medicines/${e.target.dataset.mid}`, { method: 'DELETE' });
+            refreshAll();
         });
     });
+    el.querySelectorAll('.btn-dosage-delete').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            if (!confirm('Delete this dosage?')) return;
+            await fetch(`/api/dashboard/dosages/${e.target.dataset.did}`, { method: 'DELETE' });
+            refreshAll();
+        });
+    });
+    el.querySelectorAll('.btn-dosage-add').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            document.getElementById('d-modal-med-id').value = e.target.dataset.mid;
+            document.getElementById('dosage-modal').showModal();
+        });
+    });
+    el.querySelectorAll('.btn-dosage-taken').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            await fetch('/api/dashboard/adherence', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ dosage_id: e.target.dataset.did, status: 'taken' })
+            });
+            refreshAll();
+        });
+    });
+    el.querySelectorAll('.btn-dosage-missed').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            await fetch('/api/dashboard/adherence', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ dosage_id: e.target.dataset.did, status: 'missed' })
+            });
+            refreshAll();
+        });
+    });
+    return meds;
 }
 
-// "Add a medicine" form submit handler -- intercepts the default submit,
-// POSTs the new medicine, clears the form, and refreshes the list.
+document.getElementById('dosage-form').addEventListener('submit', async () => {
+    const mid = document.getElementById('d-modal-med-id').value;
+    await fetch('/api/dashboard/dosages', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            medicine_id: mid,
+            amount: document.getElementById('d-modal-amount').value,
+            frequency: document.getElementById('d-modal-freq').value,
+            time_of_day: document.getElementById('d-modal-time').value || null,
+            consumption_instructions: document.getElementById('d-modal-inst').value || null,
+        })
+    });
+    document.getElementById('dosage-form').reset();
+    refreshAll();
+});
+
 document.getElementById('add-medicine-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = document.getElementById('new-med-name').value.trim();
     if (!name) return;
-    await fetch('/api/dashboard/medicines', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+    const res = await fetch('/api/dashboard/medicines', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
             name,
             strength: document.getElementById('new-med-strength').value || null,
             notes: document.getElementById('new-med-notes').value || null,
+            supply_count: document.getElementById('new-med-supply').value ? parseInt(document.getElementById('new-med-supply').value) : null,
+            refill_threshold: document.getElementById('new-med-refill').value ? parseInt(document.getElementById('new-med-refill').value) : null,
         }),
     });
+    const data = await res.json();
+    if (data.warning) {
+        alert("⚠️ Interaction Warning:\n" + data.warning);
+    }
     document.getElementById('add-medicine-form').reset();
-    loadMedicines();
+    refreshAll();
 });
 
-// Read-only appointments list -- no edit/delete buttons here, since
-// appointments are only ever created via the chat assistant's HITL flow.
+document.getElementById('sync-wearable-btn')?.addEventListener('click', async (e) => {
+    e.target.disabled = true;
+    e.target.textContent = 'Syncing...';
+    try {
+        const res = await fetch('/api/dashboard/sync-wearable', { method: 'POST' });
+        const data = await res.json();
+        alert(data.message);
+        refreshAll();
+    } catch(err) {
+        alert("Sync failed.");
+    }
+    e.target.disabled = false;
+    e.target.textContent = 'Sync Apple Health';
+});
+
 async function loadAppointments() {
     const res = await fetch('/api/dashboard/appointments');
     const appts = await res.json();
     const el = document.getElementById('appointments-list');
-    el.innerHTML = appts.length ? '' : '<p style="color:#64748b;font-size:14px;">No appointments scheduled.</p>';
-    appts.forEach(a => {
-        el.innerHTML += `<div style="padding:8px 0;border-bottom:1px solid #e2e8f0;font-size:14px;">
-            <strong>${a.doctor_name}</strong> ${a.specialty ? '· ' + a.specialty : ''} — ${new Date(a.scheduled_for).toLocaleString()}
+    if (!appts.length) {
+        el.innerHTML = '<p class="empty-state">No appointments scheduled. Ask the assistant in chat to book one.</p>';
+        return appts;
+    }
+    el.innerHTML = appts.map(a => `
+        <div class="list-item">
+            <div>
+                <strong>${a.doctor_name}</strong>
+                ${a.specialty ? `<span class="text-muted"> · ${a.specialty}</span>` : ''}
+                <div class="text-muted">${new Date(a.scheduled_for).toLocaleString()}</div>
+            </div>
             <span class="badge">${a.status}</span>
-        </div>`;
-    });
+        </div>
+    `).join('');
+    return appts;
 }
 
-// Medical records list -- shows each uploaded PDF's filename and record
-// type tag, with Edit-type and Delete controls per row.
 async function loadRecords() {
     const res = await fetch('/api/records/');
     const records = await res.json();
     const el = document.getElementById('records-list');
-    el.innerHTML = records.length ? '' : '<p style="color:#64748b;font-size:14px;">No records uploaded.</p>';
+    if (!records.length) {
+        el.innerHTML = '<p class="empty-state">No records uploaded yet.</p>';
+        return records;
+    }
+    el.innerHTML = records.map(r => `
+        <div class="list-item" data-rid="${r.id}">
+            <span>&#128196; ${r.filename} ${r.record_type ? `<span class="badge">${r.record_type}</span>` : ''}</span>
+            <span class="list-actions">
+                <button class="btn btn-secondary btn-xs btn-rec-edit">Edit type</button>
+                <button class="btn btn-danger-light btn-xs btn-rec-delete">Delete</button>
+            </span>
+        </div>
+    `).join('');
 
-    records.forEach(r => {
-        const row = document.createElement('div');
-        row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:13px;';
-        row.innerHTML = `<span>📄 ${r.filename} ${r.record_type ? `<span class="badge">${r.record_type}</span>` : ''}</span>
-            <span>
-                <button class="btn-rec-edit" style="padding:3px 8px;font-size:11px;background:#e2e8f0;">Edit type</button>
-                <button class="btn-rec-delete" style="padding:3px 8px;font-size:11px;background:#fee2e2;color:#dc2626;">Delete</button>
-            </span>`;
-        el.appendChild(row);
-
-        // Deleting a record also removes its indexed chunks + the file on
-        // disk server-side (see app/api/dashboard.py's delete_record) --
-        // the record immediately stops being searchable via chat too.
+    el.querySelectorAll('.list-item').forEach((row, i) => {
+        const r = records[i];
         row.querySelector('.btn-rec-delete').addEventListener('click', async () => {
-            if (!confirm(`Delete ${r.filename}? This removes it and its indexed content.`)) return;
+            if (!confirm(`Delete ${r.filename}?`)) return;
             await fetch(`/api/dashboard/records/${r.id}`, { method: 'DELETE' });
-            loadRecords();
+            refreshAll();
         });
-
-        // Metadata-only edit (the record_type tag) -- doesn't touch the
-        // actual PDF file or its extracted/embedded content.
         row.querySelector('.btn-rec-edit').addEventListener('click', async () => {
-            const record_type = prompt('Record type (e.g. lab_report, prescription, imaging)', r.record_type || '');
-            if (record_type === null) return; // user clicked Cancel
+            const record_type = prompt('Record type (e.g. lab_report, prescription)', r.record_type || '');
+            if (record_type === null) return;
             await fetch(`/api/dashboard/records/${r.id}`, {
-                method: 'PUT',
-                headers: {'Content-Type': 'application/json'},
+                method: 'PUT', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ record_type }),
             });
-            loadRecords();
+            refreshAll();
         });
     });
+    return records;
 }
 
-// Upload button: reads the selected file, sends it as multipart form
-// data (required for file uploads, unlike the JSON bodies used
-// elsewhere on this page) to /api/records/upload.
 document.getElementById('upload-btn').addEventListener('click', async () => {
     const fileInput = document.getElementById('record-file');
     if (!fileInput.files.length) return;
     const formData = new FormData();
     formData.append('file', fileInput.files[0]);
     const res = await fetch('/api/records/upload', { method: 'POST', body: formData });
-    if (res.ok) {
-        fileInput.value = ''; // clear the file input so the same file could be re-selected later if needed
-        loadRecords();
-    }
+    if (res.ok) { fileInput.value = ''; refreshAll(); }
 });
 
-// Loads notifications and updates the unread-count badge on the sidebar
-// bell link. Called on page load and re-polled every 60 seconds (see
-// setInterval at the bottom) so new reminders from the background
-// scheduler (app/core/scheduler.py) show up without a manual refresh.
 async function loadNotifications() {
     const res = await fetch('/api/notifications/');
     const notifs = await res.json();
@@ -317,19 +381,34 @@ async function loadNotifications() {
     const badge = document.getElementById('notif-badge');
     badge.style.display = unread.length ? 'inline-block' : 'none';
     badge.textContent = unread.length;
-
     const el = document.getElementById('notifications-list');
-    el.innerHTML = notifs.length ? '' : '<p style="color:#64748b;font-size:14px;">No reminders yet.</p>';
-    notifs.forEach(n => {
-        el.innerHTML += `<div style="padding:8px 0;border-bottom:1px solid #e2e8f0;font-size:14px;${n.is_read ? 'opacity:0.5;' : ''}">
-            <strong>${n.title}</strong><br><span style="color:#64748b;">${n.body || ''}</span>
-        </div>`;
+    el.innerHTML = notifs.length ? notifs.map(n => `
+        <div class="list-item ${n.is_read ? 'is-read' : ''}">
+            <div><strong>${n.title}</strong><br><span class="text-muted">${n.body || ''}</span></div>
+            ${n.action_payload && !n.is_read ? `
+                <div style="margin-top: 8px;">
+                    <button class="btn btn-primary-light btn-xs btn-notif-action" data-nid="${n.id}">
+                        ${n.action_payload.action === 'mark_taken' ? 'Mark Taken' : n.action_payload.action === 'request_refill' ? 'Request Refill' : 'Take Action'}
+                    </button>
+                </div>
+            ` : ''}
+        </div>
+    `).join('') : '<p class="empty-state">No reminders yet.</p>';
+
+    el.querySelectorAll('.btn-notif-action').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const nid = e.target.dataset.nid;
+            const actionRes = await fetch(`/api/notifications/${nid}/action`, { method: 'POST' });
+            if (actionRes.ok) {
+                loadNotifications();
+                refreshAll();
+            }
+        });
     });
 }
 
-// Toggle the reminders panel open/closed. Opening it also marks every
-// notification as read (mimics common "seen it" behavior for a bell icon).
-document.getElementById('notif-toggle').addEventListener('click', (e) => {
+document.getElementById('notif-toggle')?.addEventListener('click', (e) => {
     e.preventDefault();
     const card = document.getElementById('notifications-card');
     card.style.display = card.style.display === 'none' ? 'block' : 'none';
@@ -340,16 +419,78 @@ document.getElementById('notif-toggle').addEventListener('click', (e) => {
 
 document.getElementById('logout-link').addEventListener('click', async (e) => {
     e.preventDefault();
-    await fetch('/api/auth/logout', { method: 'POST' }); // clears the auth cookie server-side
+    await fetch('/api/auth/logout', { method: 'POST' });
     window.location.href = '/login';
 });
 
-// Initial page load: populate every section, then start polling
-// notifications every 60 seconds so reminders appear without a manual refresh.
-loadMedicines();
-loadAppointments();
-loadRecords();
+async function loadAdherence() {
+    const res = await fetch('/api/dashboard/adherence');
+    const logs = await res.json();
+    const cal = document.getElementById('adherence-calendar');
+    if (!cal) return logs;
+
+    const history = {};
+    logs.forEach(l => {
+        const d = new Date(l.taken_at).toDateString();
+        if (l.status === 'missed' || !history[d]) history[d] = l.status;
+    });
+
+    const NUM_WEEKS = 14, NUM_DAYS = NUM_WEEKS * 7;
+    const today = new Date();
+    const startDate = new Date(today);
+    startDate.setDate(today.getDate() - (NUM_DAYS - 1));
+    startDate.setDate(startDate.getDate() - startDate.getDay());
+
+    let html = '<div class="github-grid-container"><div class="github-grid-months" style="display:flex;position:relative;height:20px;margin-left:32px;">';
+    let tempDate = new Date(startDate), prevMonth = -1;
+    for (let w = 0; w < NUM_WEEKS; w++) {
+        let m = tempDate.getMonth();
+        if (m !== prevMonth && tempDate.getDate() < 24) {
+            html += `<div style="position:absolute;left:${w * 18}px;">${tempDate.toLocaleString('default', {month:'short'})}</div>`;
+            prevMonth = m;
+        }
+        tempDate.setDate(tempDate.getDate() + 7);
+    }
+    html += '</div><div class="github-grid-body"><div class="github-grid-weekdays"><div></div><div>Mon</div><div></div><div>Wed</div><div></div><div>Fri</div><div></div></div>';
+    tempDate = new Date(startDate);
+    for (let w = 0; w < NUM_WEEKS; w++) {
+        html += '<div class="github-grid-week">';
+        for (let d = 0; d < 7; d++) {
+            if (tempDate > today) {
+                html += '<div class="github-grid-day" style="background:transparent;box-shadow:none;cursor:default;"></div>';
+                tempDate.setDate(tempDate.getDate() + 1);
+                continue;
+            }
+            const dateStr = tempDate.toDateString();
+            const status = history[dateStr];
+            let cssClass = 'grid-level-0', statusText = 'No data';
+            if (status === 'taken') { cssClass = 'grid-level-3'; statusText = 'Taken'; }
+            else if (status === 'missed') { cssClass = 'grid-missed'; statusText = 'Missed'; }
+            html += `<div class="github-grid-day ${cssClass}"><div class="grid-tooltip">${dateStr} (${statusText})</div></div>`;
+            tempDate.setDate(tempDate.getDate() + 1);
+        }
+        html += '</div>';
+    }
+    html += '</div></div>';
+    cal.innerHTML = html;
+    return logs;
+}
+
+async function refreshAll() {
+    const [meds, appts, logs, records] = await Promise.all([
+        loadMedicines(), loadAppointments(), loadAdherence(), loadRecords()
+    ]);
+    updateStats(meds || [], appts || [], logs || [], records || []);
+}
+
+loadUser();
+refreshAll();
 loadNotifications();
 setInterval(loadNotifications, 60000);
+
+const sidebar = document.getElementById('sidebar');
+document.getElementById('sidebar-open')?.addEventListener('click', () => sidebar.classList.remove('sidebar-closed'));
+document.getElementById('sidebar-close')?.addEventListener('click', () => sidebar.classList.add('sidebar-closed'));
+if (window.innerWidth <= 900) sidebar.classList.add('sidebar-closed');
 </script>
 {% endblock %}

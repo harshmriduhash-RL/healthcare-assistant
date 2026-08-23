@@ -40,16 +40,19 @@ router = APIRouter(prefix="/api/chat", tags=["chat"])
 def _interrupt_payload(state_snapshot):
     """Pull the pending interrupt (if any) out of a graph state snapshot.
 
-    A LangGraph state snapshot's `.interrupts` list is non-empty exactly
+    A LangGraph state snapshot's tasks list contains pending interrupts
     when the graph is currently paused at an interrupt() call -- this
     small helper is used by both /start and /resume to check "did we just
     stop at the HITL gate?" and, if so, extract the payload we passed to
     interrupt() in human_approval_node (app/agents/hitl.py) so it can be
     sent to the browser to render the approval card.
     """
-    if state_snapshot.interrupts:
-        return state_snapshot.interrupts[0].value
+    if state_snapshot.tasks:
+        for task in state_snapshot.tasks:
+            if task.interrupts:
+                return task.interrupts[0].value
     return None
+
 
 
 @router.post("/start")

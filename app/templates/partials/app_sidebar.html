@@ -1,0 +1,31 @@
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <a href="/dashboard" class="sidebar-brand">
+            <span class="brand-mark">CP</span>
+            <span class="brand-text">CarePilot</span>
+        </a>
+        <button class="sidebar-toggle-btn" id="sidebar-close" title="Close sidebar" aria-label="Close sidebar">&times;</button>
+    </div>
+    <nav class="sidebar-nav">
+        <a href="/dashboard" class="{% if active_page == 'dashboard' %}active{% endif %}">
+            <span class="nav-icon">&#9632;</span> Dashboard
+        </a>
+        <a href="/chat" class="{% if active_page == 'chat' %}active{% endif %}">
+            <span class="nav-icon">&#9679;</span> AI Assistant
+        </a>
+        <a href="/timeline" class="{% if active_page == 'timeline' %}active{% endif %}">
+            <span class="nav-icon">&#9716;</span> Timeline
+        </a>
+        <a href="/report" class="{% if active_page == 'report' %}active{% endif %}">
+            <span class="nav-icon">&#128202;</span> Weekly Report
+        </a>
+        <a href="#" id="notif-toggle" class="{% if active_page == 'dashboard' %}notif-link{% endif %}">
+            <span class="nav-icon">&#9889;</span> Reminders
+            <span id="notif-badge" class="badge badge-alert" style="display:none;"></span>
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <a href="/" class="sidebar-home">Back to home</a>
+        <a href="#" id="logout-link" class="sidebar-logout">Log out</a>
+    </div>
+</div>
