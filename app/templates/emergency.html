@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}CarePilot AI — Emergency SOS Dashboard{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 800px; margin-top: 40px; margin-bottom: 60px;">
+    <div class="emergency-sos-bar">
+        <div>
+            <h2 style="margin: 0; font-size: 24px; font-weight: 800;">🚨 EMERGENCY SOS ACTIVATED</h2>
+            <p style="margin: 4px 0 0; opacity: 0.9; font-size: 14px;">All family caregivers and emergency contacts have been notified.</p>
+        </div>
+        <a href="/dashboard" class="btn btn-white btn-sm">Return to Dashboard</a>
+    </div>
+
+    <div class="card" style="border-left: 4px solid var(--danger);">
+        <div class="card-header">
+            <h3>Patient Emergency Record</h3>
+            <span class="badge badge-alert">CRITICAL STATUS</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+            <div>
+                <label>Patient Name</label>
+                <div style="font-size: 18px; font-weight: 800;" id="emName">Loading...</div>
+            </div>
+            <div>
+                <label>Emergency Contact Phone</label>
+                <div style="font-size: 18px; font-weight: 800; color: var(--danger);" id="emPhone">Loading...</div>
+            </div>
+            <div>
+                <label>ABHA / ABDM ID</label>
+                <div style="font-size: 14px; font-weight: 600;" id="emAbdm">-</div>
+            </div>
+            <div>
+                <label>Primary Language</label>
+                <div style="font-size: 14px; font-weight: 600;" id="emLang">Hindi</div>
+            </div>
+        </div>
+
+        <h4>Active Prescribed Medications (Doctor Ready)</h4>
+        <div id="emMedsList" style="margin-bottom: 24px;">
+            <div class="empty-state">Loading active medications...</div>
+        </div>
+
+        <div style="display: flex; gap: 12px;">
+            <a href="tel:+919876543210" class="btn btn-danger btn-lg" style="flex: 1; text-align: center; justify-content: center;">
+                📞 Call Emergency Contact Now
+            </a>
+            <button onclick="window.print()" class="btn btn-secondary btn-lg">
+                🖨️ Print Doctor Summary
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function loadEmergencyData() {
+        try {
+            const res = await fetch('/api/patients/current');
+            if (res.ok) {
+                const patient = await res.json();
+                document.getElementById('emName').innerText = patient.name;
+                document.getElementById('emPhone').innerText = patient.emergency_contact_phone || patient.phone_number || '108 / Emergency';
+                document.getElementById('emAbdm').innerText = patient.abdm_id || 'Not linked';
+                document.getElementById('emLang').innerText = patient.primary_language;
+
+                // Load active meds
+                const mRes = await fetch('/api/dashboard/medicines');
+                if (mRes.ok) {
+                    const meds = await mRes.json();
+                    const container = document.getElementById('emMedsList');
+                    if (meds.length === 0) {
+                        container.innerHTML = '<div class="empty-state">No active medications listed.</div>';
+                    } else {
+                        container.innerHTML = meds.map(m => `
+                            <div style="padding: 10px; border-bottom: 1px solid var(--border-light); font-weight: 600;">
+                                💊 ${m.name} ${m.strength ? `(${m.strength})` : ''} — ${m.dosages.map(d => d.frequency).join(', ')}
+                            </div>
+                        `).join('');
+                    }
+                }
+            }
+        } catch(e) {}
+    }
+    loadEmergencyData();
+</script>
+{% endblock %}

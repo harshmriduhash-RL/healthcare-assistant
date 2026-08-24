@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}CarePilot — Daily Health Touchpoint{% endblock %}
+
+{% block content %}
+<div class="elderly-view-container">
+    <div class="brand-mark" style="margin: 0 auto 16px; width: 48px; height: 48px; font-size: 16px;">CP</div>
+    <div class="elderly-headline">Namaste, <span id="patientName">Ram Sharma</span> Ji 🙏</div>
+    <p style="font-size: 18px; color: var(--text-muted); margin-bottom: 24px;">Did you take your daily medicines today?</p>
+
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+        <button id="btnYes" class="btn btn-success elderly-btn-large">
+            <span>✅ Yes, I Took My Medicine</span>
+        </button>
+        <button id="btnNo" class="btn btn-warning elderly-btn-large" style="background: var(--warning);">
+            <span>⏰ Not Yet / Missed</span>
+        </button>
+    </div>
+
+    <div id="statusMessage" style="margin-top: 24px; font-size: 16px; font-weight: 700; color: var(--success); display: none;"></div>
+
+    <div style="margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--border-light); font-size: 13px; color: var(--text-muted);">
+        CarePilot AI Daily Touchpoint • No App Needed
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = window.location.pathname.split('/').pop();
+
+    async function loadPatientInfo() {
+        try {
+            const res = await fetch(`/api/checkin/public/${token}`);
+            if (res.ok) {
+                const data = await res.json();
+                document.getElementById('patientName').innerText = data.patient_name;
+            }
+        } catch(e) {}
+    }
+
+    async function confirmDose(status) {
+        try {
+            const res = await fetch('/api/checkin/public/confirm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ share_token: token, status: status })
+            });
+            const data = await res.json();
+            const msgEl = document.getElementById('statusMessage');
+            msgEl.innerText = status === 'taken' ? '✨ Thank you! Your family has been notified.' : 'Logged. Your caregiver has been notified.';
+            msgEl.style.display = 'block';
+            document.getElementById('btnYes').disabled = true;
+            document.getElementById('btnNo').disabled = true;
+        } catch(e) {
+            alert('Error logging dose response.');
+        }
+    }
+
+    document.getElementById('btnYes').addEventListener('click', () => confirmDose('taken'));
+    document.getElementById('btnNo').addEventListener('click', () => confirmDose('missed'));
+
+    loadPatientInfo();
+</script>
+{% endblock %}

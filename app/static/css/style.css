@@ -1137,3 +1137,173 @@ tr:hover td { background: var(--bg); }
     .chat-input-row { flex-direction: column; }
     .chat-input-row .btn { width: 100%; }
 }
+
+/* ============================================================
+   CAREPILOT AI CUSTOM COMPONENTS
+   ============================================================ */
+.patient-switcher-bar {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    color: white;
+    padding: 14px 24px;
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow-md);
+}
+.patient-context-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.patient-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: white;
+    font-weight: 800;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid rgba(255,255,255,0.2);
+}
+.patient-name-title {
+    font-size: 16px;
+    font-weight: 800;
+    margin: 0;
+    letter-spacing: -0.3px;
+}
+.patient-meta-tag {
+    font-size: 12px;
+    color: #94a3b8;
+}
+.patient-select-dropdown {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-sm);
+    padding: 6px 12px;
+    font-size: 13px;
+    font-family: var(--font);
+    cursor: pointer;
+    margin-bottom: 0;
+}
+.patient-select-dropdown option {
+    background: var(--navy);
+    color: white;
+}
+
+/* Alert Feed */
+.alert-card-item {
+    border-left: 4px solid var(--warning);
+    background: white;
+    border: 1px solid var(--border);
+    border-left-width: 4px;
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    margin-bottom: 12px;
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition);
+}
+.alert-card-item.critical {
+    border-left-color: var(--danger);
+    background: #fef2f2;
+}
+.alert-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+.alert-title {
+    font-weight: 700;
+    font-size: 14px;
+    margin: 0;
+}
+.alert-time {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+.alert-body {
+    font-size: 13px;
+    color: var(--text);
+    margin: 0 0 10px;
+    line-height: 1.5;
+}
+.escalation-badge {
+    background: var(--danger);
+    color: white;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Emergency Mode SOS Banner */
+.emergency-sos-bar {
+    background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+    color: white;
+    padding: 16px 24px;
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    box-shadow: 0 10px 25px -5px rgba(239, 68, 68, 0.4);
+    animation: pulseGlow 2s infinite;
+}
+@keyframes pulseGlow {
+    0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
+    70% { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+/* Generic Savings Card */
+.savings-card {
+    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+    border: 1px solid #a7f3d0;
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+.savings-amount {
+    font-size: 28px;
+    font-weight: 800;
+    color: #047857;
+}
+
+/* Elderly Patient Public View */
+.elderly-view-container {
+    max-width: 500px;
+    margin: 40px auto;
+    background: white;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    padding: 32px;
+    text-align: center;
+    border: 2px solid var(--primary-50);
+}
+.elderly-headline {
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 8px;
+}
+.elderly-btn-large {
+    width: 100%;
+    padding: 24px;
+    font-size: 22px;
+    font-weight: 800;
+    border-radius: 16px;
+    margin-top: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+

@@ -1,44 +1,69 @@
 {% extends "base.html" %}
-{% block title %}Dashboard — CarePilot{% endblock %}
+{% block title %}CarePilot AI — Caregiver Intelligence Dashboard{% endblock %}
 {% block body_class %}app-page{% endblock %}
+
 {% block content %}
 <div class="app-shell">
     {% set active_page = 'dashboard' %}
     {% include "partials/app_sidebar.html" %}
     <div class="main-content" id="main-content">
+
+        <!-- Top Header & Emergency SOS Button -->
         <div class="main-header">
             <button class="hamburger" id="sidebar-open" title="Open sidebar" aria-label="Open sidebar">&#9776;</button>
+            <div style="flex: 1;">
+                <h1 id="welcome-heading">CarePilot AI Dashboard</h1>
+                <p class="page-subtitle">Longitudinal background caregiving intelligence for your aging parent.</p>
+            </div>
             <div>
-                <h1 id="welcome-heading">Your Health Overview</h1>
-                <p class="page-subtitle">Manage medicines, track adherence, and keep your records organized.</p>
+                <a href="/emergency" class="btn btn-danger btn-md" style="display: flex; align-items: center; gap: 8px; font-weight: 800; animation: pulseGlow 2s infinite;">
+                    🚨 Emergency SOS
+                </a>
+            </div>
+        </div>
+
+        <!-- Patient Context Switcher Bar -->
+        <div class="patient-switcher-bar">
+            <div class="patient-context-info">
+                <div class="patient-avatar" id="pAvatar">RS</div>
+                <div>
+                    <div class="patient-name-title" id="pName">Ram Sharma (Dad)</div>
+                    <div class="patient-meta-tag">Age: <span id="pAge">68</span> • Language: <span id="pLang">Hindi</span> • Daily Touchpoint: <span id="pStatus" class="badge badge-success" style="background:#10b981;color:white;">Active</span></div>
+                </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <select id="patientSelect" class="patient-select-dropdown">
+                    <option value="">Select Patient Context...</option>
+                </select>
+                <button class="btn btn-white btn-sm" onclick="document.getElementById('new-patient-modal').showModal()">+ Add Parent</button>
             </div>
         </div>
 
         <!-- Stats row -->
         <div class="stats-grid" id="stats-grid">
             <div class="stat-card">
-                <div class="stat-icon stat-icon-teal">&#128138;</div>
+                <div class="stat-icon stat-icon-teal">💊</div>
                 <div class="stat-body">
                     <div class="stat-value" id="stat-meds">—</div>
                     <div class="stat-label">Active medicines</div>
                 </div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon stat-icon-blue">&#128197;</div>
+                <div class="stat-icon stat-icon-blue">📅</div>
                 <div class="stat-body">
                     <div class="stat-value" id="stat-appts">—</div>
                     <div class="stat-label">Upcoming appointments</div>
                 </div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon stat-icon-green">&#10003;</div>
+                <div class="stat-icon stat-icon-green">⚡</div>
                 <div class="stat-body">
                     <div class="stat-value" id="stat-adherence">—</div>
-                    <div class="stat-label">Doses taken (30 days)</div>
+                    <div class="stat-label">Check-ins logged</div>
                 </div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon stat-icon-purple">&#128196;</div>
+                <div class="stat-icon stat-icon-purple">📄</div>
                 <div class="stat-body">
                     <div class="stat-value" id="stat-records">—</div>
                     <div class="stat-label">Medical records</div>
@@ -46,451 +71,562 @@
             </div>
         </div>
 
-        <div class="info-banner">
-            <strong>Tip:</strong> Direct edits here save immediately — no approval step needed.
-            Use the <a href="/chat">AI Assistant</a> if you'd rather have an agent propose changes for you to review.
-        </div>
-
-        <div class="card" id="notifications-card" style="display:none;">
+        <!-- Longitudinal Pattern Intelligence Alerts & Escalation Feed -->
+        <div class="card" style="border-left: 4px solid var(--primary);">
             <div class="card-header">
-                <h3>Reminders</h3>
+                <h3>🔍 Intelligence & Escalation Alerts</h3>
+                <div>
+                    <button class="btn btn-primary-light btn-xs" id="run-pattern-btn">Run Pattern Analysis</button>
+                    <button class="btn btn-danger-light btn-xs" id="test-escalate-btn">Test Escalation Chain</button>
+                </div>
             </div>
-            <div id="notifications-list"></div>
+            <div id="alerts-feed-list">
+                <p class="thinking">Loading intelligence alerts...</p>
+            </div>
         </div>
 
+        <!-- Daily Touchpoint Check-in Simulator Widget -->
+        <div class="card" style="background: linear-gradient(135deg, #f0fdfa 0%, #ecfeff 100%); border: 1px solid #cffafe;">
+            <div class="card-header">
+                <h3>💬 Patient Daily Touchpoint Simulator</h3>
+                <span class="badge" style="background:var(--primary);color:white;">WhatsApp / IVR Voice Channel</span>
+            </div>
+            <p class="card-note">Simulate the patient's daily check-in touchpoint and test how CarePilot AI parses voice notes and spoken replies into structured adherence data.</p>
+            
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px;">
+                <button class="btn btn-primary btn-sm" id="trigger-touchpoint-btn">1. Trigger Daily Check-in</button>
+                <button class="btn btn-secondary btn-sm" id="sim-voice-yes-btn">2. Sim Spoken Voice Note ("Haan, dawai le li subah")</button>
+                <button class="btn btn-warning btn-sm" id="sim-voice-no-btn">3. Sim Spoken Voice Note ("Nahi bhool gaya tha")</button>
+                <button class="btn btn-outline btn-sm" id="sim-ivr-btn">4. Sim Fallback IVR Call</button>
+            </div>
+
+            <div id="checkin-sim-result" style="display: none; background: white; padding: 14px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 13px;">
+                <strong>Latest Check-in Response Result:</strong>
+                <div id="checkin-result-body" style="margin-top: 6px;"></div>
+            </div>
+        </div>
+
+        <!-- Generic Medicine Cost Savings & Pharmacy Refill Card -->
+        <div class="savings-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+                <div>
+                    <h3 style="margin: 0 0 4px; color: #065f46;">🇮🇳 Generic Medicine Cost Saver</h3>
+                    <p style="margin: 0; font-size: 13px; color: #047857;">Estimated annual savings by switching to quality generic equivalents in India.</p>
+                </div>
+                <div>
+                    <span class="savings-amount" id="annualSavingsVal">₹0 / yr</span>
+                </div>
+            </div>
+            <div id="genericBreakdownList" style="margin-top: 14px; font-size: 13px;"></div>
+        </div>
+
+        <!-- Medicines Table -->
         <div class="card">
             <div class="card-header">
-                <h3>Add a medicine</h3>
+                <h3>Prescribed Medicines</h3>
+                <div>
+                    <button class="btn btn-secondary btn-sm" id="export-doc-summary-btn" style="margin-right: 8px;">📋 Export Doctor Visit Prep</button>
+                    <a href="/api/dashboard/medicines/export" class="btn btn-secondary btn-sm" target="_blank">Export CSV</a>
+                </div>
+            </div>
+            <div id="medicines-list"><p class="thinking">Loading medicines...</p></div>
+        </div>
+
+        <!-- Add Medicine Form -->
+        <div class="card">
+            <div class="card-header">
+                <h3>Add a prescribed medicine</h3>
             </div>
             <form id="add-medicine-form" class="form-row">
-                <input type="text" id="new-med-name" placeholder="Medicine name" required>
+                <input type="text" id="new-med-name" placeholder="Medicine name (e.g. Metformin)" required>
                 <input type="text" id="new-med-strength" placeholder="Strength (e.g. 500mg)">
-                <input type="number" id="new-med-supply" placeholder="Total supply">
-                <input type="number" id="new-med-refill" placeholder="Refill alert at">
+                <input type="number" id="new-med-supply" placeholder="Total supply count">
+                <input type="number" id="new-med-refill" placeholder="Refill threshold (default 10)">
                 <input type="text" id="new-med-notes" placeholder="Notes (optional)">
                 <button type="submit" class="btn btn-primary">Add medicine</button>
             </form>
         </div>
 
+        <!-- Family Coordination & Activity Feed -->
         <div class="card">
             <div class="card-header">
-                <h3>Medicines</h3>
+                <h3>👥 Family Care Coordination</h3>
+                <button class="btn btn-secondary btn-sm" onclick="document.getElementById('task-modal').showModal()">+ Add Task</button>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                 <div>
-                    <button class="btn btn-secondary btn-sm" id="sync-wearable-btn" style="margin-right: 8px;">Sync Apple Health</button>
-                    <a href="/api/dashboard/medicines/export" class="btn btn-secondary btn-sm" target="_blank">Export CSV</a>
+                    <h4>Shared Activity Feed</h4>
+                    <div id="family-feed-list" style="font-size: 13px; max-height: 250px; overflow-y: auto;">
+                        <p class="thinking">Loading activity feed...</p>
+                    </div>
+                </div>
+                <div>
+                    <h4>Care Tasks</h4>
+                    <div id="family-tasks-list" style="font-size: 13px; max-height: 250px; overflow-y: auto;">
+                        <p class="thinking">Loading family tasks...</p>
+                    </div>
                 </div>
             </div>
-            <div id="medicines-list"><p class="thinking">Loading…</p></div>
         </div>
 
+        <!-- Medical Records & Document OCR -->
         <div class="card">
             <div class="card-header">
-                <h3>Adherence tracker</h3>
-                <span class="card-hint">Last 3 months</span>
+                <h3>📑 Medical Records & Prescription OCR</h3>
             </div>
-            <div id="adherence-calendar"></div>
-            <div class="adherence-legend">
-                <span><span class="legend-dot grid-level-0"></span> No data</span>
-                <span><span class="legend-dot grid-level-3"></span> Taken</span>
-                <span><span class="legend-dot grid-missed"></span> Missed</span>
-            </div>
-        </div>
-
-        <dialog id="dosage-modal" class="modal-dialog">
-            <h3>Add dosage</h3>
-            <form method="dialog" id="dosage-form" class="form-stack">
-                <input type="hidden" id="d-modal-med-id">
-                <label>Amount</label>
-                <input type="text" id="d-modal-amount" placeholder="e.g. 5mg, 1 tablet" required>
-                <label>Frequency</label>
-                <input type="text" id="d-modal-freq" placeholder="e.g. daily, twice daily" required>
-                <label>Time of day</label>
-                <input type="text" id="d-modal-time" placeholder="e.g. 08:00, 20:00">
-                <label>Instructions</label>
-                <input type="text" id="d-modal-inst" placeholder="e.g. before food">
-                <div class="modal-actions">
-                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('dosage-modal').close()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save dosage</button>
-                </div>
-            </form>
-        </dialog>
-
-        <div class="card">
-            <div class="card-header">
-                <h3>Upcoming appointments</h3>
-            </div>
-            <p class="card-note">Scheduling goes through the <a href="/chat">AI Assistant</a> with your approval — not editable directly here.</p>
-            <div id="appointments-list"><p class="thinking">Loading…</p></div>
-        </div>
-
-        <div class="card">
-            <div class="card-header">
-                <h3>Medical records</h3>
-            </div>
-            <p class="card-note">Upload PDFs to make them searchable by the AI assistant.</p>
+            <p class="card-note">Upload lab reports or photographed handwritten prescriptions for OCR extraction, lab metrics parsing, and auto-reconciliation HITL review.</p>
             <div class="upload-row">
-                <input type="file" id="record-file" accept="application/pdf">
-                <button class="btn btn-primary btn-sm" id="upload-btn">Upload PDF</button>
+                <input type="file" id="record-file" accept="application/pdf,image/*">
+                <button class="btn btn-primary btn-sm" id="upload-btn">Upload & Index OCR</button>
             </div>
             <div id="records-list" class="records-list"></div>
         </div>
+
+        <!-- Appointments List -->
+        <div class="card">
+            <div class="card-header">
+                <h3>Doctor Appointments</h3>
+            </div>
+            <p class="card-note">Scheduling goes through the <a href="/chat">AI Assistant</a> with explicit human approval.</p>
+            <div id="appointments-list"><p class="thinking">Loading appointments...</p></div>
+        </div>
+
     </div>
 </div>
+
+<!-- Modal: New Patient Profile -->
+<dialog id="new-patient-modal" class="modal-dialog">
+    <h3>Create Patient Profile</h3>
+    <form method="dialog" id="new-patient-form" class="form-stack">
+        <label>Parent / Patient Name</label>
+        <input type="text" id="np-name" placeholder="e.g. Ram Sharma" required>
+        <label>Age / DOB</label>
+        <input type="text" id="np-age" placeholder="e.g. 68">
+        <label>Relationship</label>
+        <select id="np-rel">
+            <option value="Father">Father</option>
+            <option value="Mother">Mother</option>
+            <option value="Relative">Relative</option>
+        </select>
+        <label>Phone Number (WhatsApp / IVR)</label>
+        <input type="text" id="np-phone" placeholder="e.g. +919876543210">
+        <label>Primary Language</label>
+        <select id="np-lang">
+            <option value="Hindi">Hindi</option>
+            <option value="English">English</option>
+            <option value="Marathi">Marathi</option>
+            <option value="Tamil">Tamil</option>
+        </select>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('new-patient-modal').close()">Cancel</button>
+            <button type="submit" class="btn btn-primary">Create Profile</button>
+        </div>
+    </form>
+</dialog>
+
+<!-- Modal: Add Task -->
+<dialog id="task-modal" class="modal-dialog">
+    <h3>Add Family Care Task</h3>
+    <form method="dialog" id="task-form" class="form-stack">
+        <label>Task Title</label>
+        <input type="text" id="tk-title" placeholder="e.g. Pick up pharmacy refill" required>
+        <label>Description</label>
+        <input type="text" id="tk-desc" placeholder="Details...">
+        <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('task-modal').close()">Cancel</button>
+            <button type="submit" class="btn btn-primary">Create Task</button>
+        </div>
+    </form>
+</dialog>
+
+<!-- Modal: Dosage -->
+<dialog id="dosage-modal" class="modal-dialog">
+    <h3>Add Dosage Schedule</h3>
+    <form method="dialog" id="dosage-form" class="form-stack">
+        <input type="hidden" id="d-modal-med-id">
+        <label>Amount</label>
+        <input type="text" id="d-modal-amount" placeholder="e.g. 5mg, 1 tablet" required>
+        <label>Frequency</label>
+        <input type="text" id="d-modal-freq" placeholder="e.g. daily, twice daily" required>
+        <label>Time of day</label>
+        <input type="text" id="d-modal-time" placeholder="e.g. 08:00, 20:00">
+        <label>Instructions</label>
+        <input type="text" id="d-modal-inst" placeholder="e.g. before food">
+        <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('dosage-modal').close()">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save Dosage</button>
+        </div>
+    </form>
+</dialog>
 {% endblock %}
+
 {% block scripts %}
 <script>
-function fieldRow(label, value) {
-    return `<label style="display:block;font-size:11px;color:#64748b;margin:6px 0 2px;">${label}</label>
-            <input type="text" value="${value === null || value === undefined ? '' : String(value).replace(/"/g, '&quot;')}" style="margin-bottom:0;">`;
-}
+let currentPatientId = "";
+let lastCheckinId = "";
 
-async function loadUser() {
+async function loadPatients() {
     try {
-        const res = await fetch('/api/auth/me');
+        const res = await fetch('/api/patients/');
         if (res.ok) {
-            const user = await res.json();
-            const displayName = user.username.split('@')[0];
-            // Capitalize first letter
-            const capitalizedName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
-            document.getElementById('welcome-heading').textContent = `Welcome back, ${capitalizedName}`;
+            const data = await res.json();
+            const selectEl = document.getElementById('patientSelect');
+            selectEl.innerHTML = data.patients.map(p => `
+                <option value="${p.id}">${p.name} (${p.relationship_type})</option>
+            `).join('');
+
+            const curRes = await fetch('/api/patients/current');
+            if (curRes.ok) {
+                const cur = await curRes.json();
+                currentPatientId = cur.id;
+                selectEl.value = cur.id;
+                document.getElementById('pName').innerText = `${cur.name} (${cur.relationship_type})`;
+                document.getElementById('pAge').innerText = cur.age_or_dob || '68';
+                document.getElementById('pLang').innerText = cur.primary_language || 'Hindi';
+                document.getElementById('pAvatar').innerText = cur.name.split(' ').map(n => n[0]).join('').toUpperCase();
+            }
         }
-    } catch (_) {}
+    } catch(e) {}
 }
 
-function updateStats(meds, appts, logs, records) {
-    document.getElementById('stat-meds').textContent = meds.length;
-    document.getElementById('stat-appts').textContent = appts.length;
-    document.getElementById('stat-records').textContent = records.length;
-    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
-    const taken = logs.filter(l => l.status === 'taken' && new Date(l.taken_at).getTime() > thirtyDaysAgo).length;
-    document.getElementById('stat-adherence').textContent = taken;
-}
-
-async function loadMedicines() {
-    const res = await fetch('/api/dashboard/medicines');
-    const meds = await res.json();
-    const el = document.getElementById('medicines-list');
-    if (!meds.length) {
-        el.innerHTML = '<p class="empty-state">No medicines yet. Add one above or ask the AI assistant.</p>';
-        return;
+document.getElementById('patientSelect').addEventListener('change', async (e) => {
+    const pid = e.target.value;
+    if (pid) {
+        await fetch(`/api/patients/select/${pid}`, { method: 'POST' });
+        refreshAll();
     }
-
-    let tableHtml = `<div class="table-wrap"><table>
-        <thead><tr><th>Medicine</th><th>Supply</th><th>Dosages</th><th>Actions</th></tr></thead><tbody>`;
-
-    meds.forEach(m => {
-        let dosagesHtml = m.dosages.map(d => `
-            <div class="dosage-row">
-                <span class="dosage-info">
-                    <strong>${d.amount}</strong> · ${d.frequency} ${d.time_of_day ? `(${d.time_of_day})` : ''}
-                    ${d.consumption_instructions ? `<br><span class="text-muted">${d.consumption_instructions}</span>` : ''}
-                </span>
-                <span class="dosage-actions">
-                    <button class="btn btn-success btn-xs btn-dosage-taken" data-did="${d.id}" title="Mark taken">Taken</button>
-                    <button class="btn btn-warning btn-xs btn-dosage-missed" data-did="${d.id}" title="Mark missed">Missed</button>
-                    <button class="btn btn-danger-light btn-xs btn-dosage-delete" data-did="${d.id}">Del</button>
-                </span>
-            </div>
-        `).join('');
-
-        const lowSupply = m.supply_count !== null && m.supply_count <= (m.refill_threshold || 0);
-        tableHtml += `
-            <tr data-mid="${m.id}">
-                <td>
-                    <strong class="med-name">${m.name} ${m.strength || ''}</strong>
-                    ${m.current_streak > 0 ? `<span class="badge" style="background:#fef08a;color:#854d0e;margin-left:6px;border:1px solid #fde047;">🔥 ${m.current_streak} Day Streak</span>` : ''}
-                    ${m.notes ? `<br><span class="text-muted">${m.notes}</span>` : ''}
-                </td>
-                <td>${m.supply_count !== null ? `<span class="${lowSupply ? 'supply-low' : ''}">${m.supply_count} left</span>` : '—'}</td>
-                <td>${dosagesHtml || '<span class="text-muted">No dosages</span>'}</td>
-                <td class="actions-cell">
-                    <button class="btn btn-primary-light btn-xs btn-dosage-add" data-mid="${m.id}">+ Dose</button>
-                    <button class="btn btn-danger-light btn-xs btn-med-delete" data-mid="${m.id}">Delete</button>
-                </td>
-            </tr>`;
-    });
-    tableHtml += '</tbody></table></div>';
-    el.innerHTML = tableHtml;
-
-    el.querySelectorAll('.btn-med-delete').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            if (!confirm('Delete this medicine?')) return;
-            await fetch(`/api/dashboard/medicines/${e.target.dataset.mid}`, { method: 'DELETE' });
-            refreshAll();
-        });
-    });
-    el.querySelectorAll('.btn-dosage-delete').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            if (!confirm('Delete this dosage?')) return;
-            await fetch(`/api/dashboard/dosages/${e.target.dataset.did}`, { method: 'DELETE' });
-            refreshAll();
-        });
-    });
-    el.querySelectorAll('.btn-dosage-add').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            document.getElementById('d-modal-med-id').value = e.target.dataset.mid;
-            document.getElementById('dosage-modal').showModal();
-        });
-    });
-    el.querySelectorAll('.btn-dosage-taken').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            await fetch('/api/dashboard/adherence', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ dosage_id: e.target.dataset.did, status: 'taken' })
-            });
-            refreshAll();
-        });
-    });
-    el.querySelectorAll('.btn-dosage-missed').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            await fetch('/api/dashboard/adherence', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ dosage_id: e.target.dataset.did, status: 'missed' })
-            });
-            refreshAll();
-        });
-    });
-    return meds;
-}
-
-document.getElementById('dosage-form').addEventListener('submit', async () => {
-    const mid = document.getElementById('d-modal-med-id').value;
-    await fetch('/api/dashboard/dosages', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            medicine_id: mid,
-            amount: document.getElementById('d-modal-amount').value,
-            frequency: document.getElementById('d-modal-freq').value,
-            time_of_day: document.getElementById('d-modal-time').value || null,
-            consumption_instructions: document.getElementById('d-modal-inst').value || null,
-        })
-    });
-    document.getElementById('dosage-form').reset();
-    refreshAll();
 });
 
-document.getElementById('add-medicine-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const name = document.getElementById('new-med-name').value.trim();
-    if (!name) return;
-    const res = await fetch('/api/dashboard/medicines', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            name,
-            strength: document.getElementById('new-med-strength').value || null,
-            notes: document.getElementById('new-med-notes').value || null,
-            supply_count: document.getElementById('new-med-supply').value ? parseInt(document.getElementById('new-med-supply').value) : null,
-            refill_threshold: document.getElementById('new-med-refill').value ? parseInt(document.getElementById('new-med-refill').value) : null,
-        }),
+async function loadAlerts() {
+    if (!currentPatientId) return;
+    try {
+        const res = await fetch(`/api/alerts/${currentPatientId}`);
+        if (res.ok) {
+            const data = await res.json();
+            const feedEl = document.getElementById('alerts-feed-list');
+            if (data.alerts.length === 0) {
+                feedEl.innerHTML = '<p class="empty-state">No alerts. Background intelligence watching over patient quietly.</p>';
+            } else {
+                feedEl.innerHTML = data.alerts.map(a => `
+                    <div class="alert-card-item ${a.severity === 'critical' ? 'critical' : ''}">
+                        <div class="alert-card-header">
+                            <h4 class="alert-title">${a.title} ${a.is_escalated ? '<span class="escalation-badge">ESCALATED TO SECONDARY</span>' : ''}</h4>
+                            <span class="alert-time">${new Date(a.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+                        </div>
+                        <p class="alert-body">${a.body}</p>
+                        <div style="display: flex; gap: 8px;">
+                            ${!a.is_acknowledged ? `<button class="btn btn-primary-light btn-xs" onclick="ackAlert('${a.id}')">Acknowledge Alert</button>` : '<span class="badge" style="background:#d1fae5;color:#047857;">✓ Acknowledged</span>'}
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+    } catch(e) {}
+}
+
+async function ackAlert(alertId) {
+    await fetch(`/api/alerts/${alertId}/acknowledge`, { method: 'POST' });
+    loadAlerts();
+}
+
+document.getElementById('run-pattern-btn').addEventListener('click', async () => {
+    if (!currentPatientId) return;
+    const res = await fetch(`/api/alerts/run-analysis/${currentPatientId}`, { method: 'POST' });
+    const data = await res.json();
+    alert(`Pattern Analysis complete. ${data.new_alerts_count} new alerts generated.`);
+    loadAlerts();
+});
+
+document.getElementById('test-escalate-btn').addEventListener('click', async () => {
+    if (!currentPatientId) return;
+    const res = await fetch(`/api/alerts/test-escalate/${currentPatientId}`, { method: 'POST' });
+    const data = await res.json();
+    alert(`Escalation chain check complete. ${data.escalated_count} alerts escalated to secondary contacts.`);
+    loadAlerts();
+});
+
+// Checkin Simulator Handlers
+document.getElementById('trigger-touchpoint-btn').addEventListener('click', async () => {
+    if (!currentPatientId) return;
+    const res = await fetch(`/api/checkin/trigger/${currentPatientId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel: 'whatsapp_voice' })
     });
     const data = await res.json();
-    if (data.warning) {
-        alert("⚠️ Interaction Warning:\n" + data.warning);
-    }
-    document.getElementById('add-medicine-form').reset();
+    lastCheckinId = data.id;
+    document.getElementById('checkin-sim-result').style.display = 'block';
+    document.getElementById('checkin-result-body').innerText = `Outbound WhatsApp voice message sent to patient. Touchpoint Session ID: ${data.id}`;
+});
+
+document.getElementById('sim-voice-yes-btn').addEventListener('click', async () => {
+    if (!lastCheckinId) { alert('Please trigger a check-in touchpoint first!'); return; }
+    const formData = new FormData();
+    formData.append('checkin_id', lastCheckinId);
+    formData.append('text_reply', 'Haan doctor ji subah ki dawai le li thi aam wali, bilkul theek hun');
+    
+    const res = await fetch('/api/checkin/reply', { method: 'POST', body: formData });
+    const data = await res.json();
+    document.getElementById('checkin-sim-result').style.display = 'block';
+    document.getElementById('checkin-result-body').innerHTML = `
+        <strong>Status Parsed:</strong> <span class="badge badge-success" style="background:#10b981;color:white;">${data.status.toUpperCase()}</span><br>
+        <strong>Transcript:</strong> "${data.transcript}"<br>
+        <strong>LLM Insight:</strong> ${data.parsed_result.wellbeing_summary}
+    `;
     refreshAll();
 });
 
-document.getElementById('sync-wearable-btn')?.addEventListener('click', async (e) => {
-    e.target.disabled = true;
-    e.target.textContent = 'Syncing...';
-    try {
-        const res = await fetch('/api/dashboard/sync-wearable', { method: 'POST' });
-        const data = await res.json();
-        alert(data.message);
-        refreshAll();
-    } catch(err) {
-        alert("Sync failed.");
-    }
-    e.target.disabled = false;
-    e.target.textContent = 'Sync Apple Health';
+document.getElementById('sim-voice-no-btn').addEventListener('click', async () => {
+    if (!lastCheckinId) { alert('Please trigger a check-in touchpoint first!'); return; }
+    const formData = new FormData();
+    formData.append('checkin_id', lastCheckinId);
+    formData.append('text_reply', 'Nahi subah bhool gaya tha dawai lena, thoda sir dard kar raha hai');
+    
+    const res = await fetch('/api/checkin/reply', { method: 'POST', body: formData });
+    const data = await res.json();
+    document.getElementById('checkin-sim-result').style.display = 'block';
+    document.getElementById('checkin-result-body').innerHTML = `
+        <strong>Status Parsed:</strong> <span class="badge" style="background:#f59e0b;color:white;">${data.status.toUpperCase()}</span><br>
+        <strong>Transcript:</strong> "${data.transcript}"<br>
+        <strong>LLM Insight:</strong> ${data.parsed_result.wellbeing_summary}
+    `;
+    refreshAll();
 });
 
-async function loadAppointments() {
-    const res = await fetch('/api/dashboard/appointments');
-    const appts = await res.json();
+document.getElementById('sim-ivr-btn').addEventListener('click', async () => {
+    if (!currentPatientId) return;
+    const res = await fetch(`/api/checkin/trigger/${currentPatientId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel: 'ivr_call' })
+    });
+    const data = await res.json();
+    alert(`Fallback IVR phone call dispatched to patient. Status: ${data.status}`);
+});
+
+// India Generic Med Spend
+async function loadSpend() {
+    if (!currentPatientId) return;
+    try {
+        const res = await fetch(`/api/india/spend/${currentPatientId}`);
+        if (res.ok) {
+            const data = await res.json();
+            document.getElementById('annualSavingsVal').innerText = `₹${Math.round(data.potential_annual_savings_inr)} / yr`;
+            const listEl = document.getElementById('genericBreakdownList');
+            if (data.breakdown.length === 0) {
+                listEl.innerHTML = 'Add prescribed medicines to view generic substitute savings.';
+            } else {
+                listEl.innerHTML = data.breakdown.map(b => `
+                    <div style="padding:4px 0;">💊 <strong>${b.name}</strong> → Generic substitute: <strong>${b.generic_substitute}</strong> (Save ₹${Math.round(b.monthly_savings_inr * 12)}/yr)</div>
+                `).join('');
+            }
+        }
+    } catch(e) {}
+}
+
+// Family Activity & Tasks
+async function loadFamilyData() {
+    if (!currentPatientId) return;
+    try {
+        const feedRes = await fetch(`/api/family/${currentPatientId}/feed`);
+        if (feedRes.ok) {
+            const feedData = await feedRes.json();
+            const el = document.getElementById('family-feed-list');
+            if (feedData.feed.length === 0) {
+                el.innerHTML = '<p class="empty-state">No activity logged.</p>';
+            } else {
+                el.innerHTML = feedData.feed.map(f => `
+                    <div style="padding: 6px 0; border-bottom: 1px solid var(--border-light);">
+                        <strong>${f.title}</strong><br><span class="text-muted">${f.description}</span>
+                    </div>
+                `).join('');
+            }
+        }
+
+        const taskRes = await fetch(`/api/family/${currentPatientId}/tasks`);
+        if (taskRes.ok) {
+            const taskData = await taskRes.json();
+            const el = document.getElementById('family-tasks-list');
+            if (taskData.tasks.length === 0) {
+                el.innerHTML = '<p class="empty-state">No care tasks created.</p>';
+            } else {
+                el.innerHTML = taskData.tasks.map(t => `
+                    <div style="padding: 6px 0; border-bottom: 1px solid var(--border-light); display:flex; justify-content:space-between;">
+                        <span>${t.title} ${t.status === 'completed' ? '✓' : ''}</span>
+                        <button class="btn btn-xs btn-secondary" onclick="toggleTask('${t.id}', '${t.status === 'completed' ? 'pending' : 'completed'}')">${t.status === 'completed' ? 'Reopen' : 'Complete'}</button>
+                    </div>
+                `).join('');
+            }
+        }
+    } catch(e) {}
+}
+
+async function toggleTask(taskId, newStatus) {
+    await fetch(`/api/family/tasks/${taskId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+    });
+    loadFamilyData();
+}
+
+document.getElementById('task-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const title = document.getElementById('tk-title').value;
+    const desc = document.getElementById('tk-desc').value;
+    await fetch(`/api/family/${currentPatientId}/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, description: desc })
+    });
+    document.getElementById('task-modal').close();
+    loadFamilyData();
+});
+
+document.getElementById('new-patient-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('np-name').value;
+    const age = document.getElementById('np-age').value;
+    const rel = document.getElementById('np-rel').value;
+    const phone = document.getElementById('np-phone').value;
+    const lang = document.getElementById('np-lang').value;
+
+    await fetch('/api/patients/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, age_or_dob: age, relationship_type: rel, phone_number: phone, primary_language: lang })
+    });
+    document.getElementById('new-patient-modal').close();
+    refreshAll();
+});
+
+document.getElementById('export-doc-summary-btn').addEventListener('click', async () => {
+    if (!currentPatientId) return;
+    window.open(`/api/records/export-summary/${currentPatientId}`, '_blank');
+});
+
+async function refreshAll() {
+    await loadPatients();
+    await loadAlerts();
+    await loadSpend();
+    await loadFamilyData();
+    // Load medicines, records, appts
+    const medsRes = await fetch('/api/dashboard/medicines');
+    const meds = await medsRes.json();
+    renderMedicines(meds);
+
+    const apptsRes = await fetch('/api/dashboard/appointments');
+    const appts = await apptsRes.json();
+    renderAppointments(appts);
+
+    const recsRes = await fetch('/api/records/');
+    const recs = await recsRes.json();
+    renderRecords(recs);
+}
+
+function renderMedicines(meds) {
+    document.getElementById('stat-meds').innerText = meds.length;
+    const el = document.getElementById('medicines-list');
+    if (!meds.length) {
+        el.innerHTML = '<p class="empty-state">No medicines yet.</p>';
+        return;
+    }
+    el.innerHTML = `<div class="table-wrap"><table>
+        <thead><tr><th>Medicine</th><th>Supply</th><th>Dosages</th><th>Actions</th></tr></thead>
+        <tbody>${meds.map(m => `
+            <tr>
+                <td>
+                    <strong>${m.name} ${m.strength || ''}</strong>
+                    ${m.current_streak > 0 ? `<span class="badge">🔥 ${m.current_streak} Day Streak</span>` : ''}
+                </td>
+                <td>${m.supply_count !== null ? `${m.supply_count} left` : '—'}</td>
+                <td>${m.dosages.map(d => `${d.amount} (${d.frequency})`).join(', ') || 'None'}</td>
+                <td>
+                    <button class="btn btn-primary-light btn-xs" onclick="openDosageModal('${m.id}')">+ Dose</button>
+                    <button class="btn btn-danger-light btn-xs" onclick="deleteMed('${m.id}')">Delete</button>
+                </td>
+            </tr>
+        `).join('')}</tbody></table></div>`;
+}
+
+function openDosageModal(medId) {
+    document.getElementById('d-modal-med-id').value = medId;
+    document.getElementById('dosage-modal').showModal();
+}
+
+async function deleteMed(medId) {
+    if (!confirm('Delete medicine?')) return;
+    await fetch(`/api/dashboard/medicines/${medId}`, { method: 'DELETE' });
+    refreshAll();
+}
+
+function renderAppointments(appts) {
+    document.getElementById('stat-appts').innerText = appts.length;
     const el = document.getElementById('appointments-list');
     if (!appts.length) {
-        el.innerHTML = '<p class="empty-state">No appointments scheduled. Ask the assistant in chat to book one.</p>';
-        return appts;
+        el.innerHTML = '<p class="empty-state">No upcoming appointments scheduled.</p>';
+        return;
     }
     el.innerHTML = appts.map(a => `
         <div class="list-item">
             <div>
-                <strong>${a.doctor_name}</strong>
-                ${a.specialty ? `<span class="text-muted"> · ${a.specialty}</span>` : ''}
-                <div class="text-muted">${new Date(a.scheduled_for).toLocaleString()}</div>
+                <strong>${a.doctor_name}</strong> (${a.specialty || 'General'})<br>
+                <span class="text-muted">${new Date(a.scheduled_for).toLocaleString()}</span>
             </div>
-            <span class="badge">${a.status}</span>
+            <span class="badge">${a.status.toUpperCase()}</span>
         </div>
     `).join('');
-    return appts;
 }
 
-async function loadRecords() {
-    const res = await fetch('/api/records/');
-    const records = await res.json();
+function renderRecords(records) {
+    document.getElementById('stat-records').innerText = records.length;
     const el = document.getElementById('records-list');
     if (!records.length) {
-        el.innerHTML = '<p class="empty-state">No records uploaded yet.</p>';
-        return records;
+        el.innerHTML = '<p class="empty-state">No medical records uploaded.</p>';
+        return;
     }
     el.innerHTML = records.map(r => `
-        <div class="list-item" data-rid="${r.id}">
-            <span>&#128196; ${r.filename} ${r.record_type ? `<span class="badge">${r.record_type}</span>` : ''}</span>
-            <span class="list-actions">
-                <button class="btn btn-secondary btn-xs btn-rec-edit">Edit type</button>
-                <button class="btn btn-danger-light btn-xs btn-rec-delete">Delete</button>
-            </span>
+        <div class="list-item">
+            <div>
+                <strong>${r.filename}</strong> ${r.reconciliation_proposed ? '<span class="badge" style="background:#fef08a;color:#854d0e;">Prescription Discrepancy Found</span>' : ''}<br>
+                <span class="text-muted">${r.summary || 'PDF document indexed'}</span>
+            </div>
+            <span class="text-muted">${new Date(r.uploaded_at).toLocaleDateString()}</span>
         </div>
     `).join('');
-
-    el.querySelectorAll('.list-item').forEach((row, i) => {
-        const r = records[i];
-        row.querySelector('.btn-rec-delete').addEventListener('click', async () => {
-            if (!confirm(`Delete ${r.filename}?`)) return;
-            await fetch(`/api/dashboard/records/${r.id}`, { method: 'DELETE' });
-            refreshAll();
-        });
-        row.querySelector('.btn-rec-edit').addEventListener('click', async () => {
-            const record_type = prompt('Record type (e.g. lab_report, prescription)', r.record_type || '');
-            if (record_type === null) return;
-            await fetch(`/api/dashboard/records/${r.id}`, {
-                method: 'PUT', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ record_type }),
-            });
-            refreshAll();
-        });
-    });
-    return records;
 }
+
+document.getElementById('add-medicine-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('new-med-name').value;
+    const strength = document.getElementById('new-med-strength').value;
+    const supply = document.getElementById('new-med-supply').value;
+    const refill = document.getElementById('new-med-refill').value;
+    const notes = document.getElementById('new-med-notes').value;
+
+    await fetch('/api/dashboard/medicines', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, strength, supply_count: supply ? parseInt(supply) : null, refill_threshold: refill ? parseInt(refill) : 10, notes })
+    });
+    e.target.reset();
+    refreshAll();
+});
 
 document.getElementById('upload-btn').addEventListener('click', async () => {
     const fileInput = document.getElementById('record-file');
     if (!fileInput.files.length) return;
+
     const formData = new FormData();
     formData.append('file', fileInput.files[0]);
+
     const res = await fetch('/api/records/upload', { method: 'POST', body: formData });
-    if (res.ok) { fileInput.value = ''; refreshAll(); }
+    const data = await res.json();
+    alert(`File uploaded and indexed via OCR! ${data.chunks_indexed} RAG vector chunks generated.`);
+    fileInput.value = '';
+    refreshAll();
 });
 
-async function loadNotifications() {
-    const res = await fetch('/api/notifications/');
-    const notifs = await res.json();
-    const unread = notifs.filter(n => !n.is_read);
-    const badge = document.getElementById('notif-badge');
-    badge.style.display = unread.length ? 'inline-block' : 'none';
-    badge.textContent = unread.length;
-    const el = document.getElementById('notifications-list');
-    el.innerHTML = notifs.length ? notifs.map(n => `
-        <div class="list-item ${n.is_read ? 'is-read' : ''}">
-            <div><strong>${n.title}</strong><br><span class="text-muted">${n.body || ''}</span></div>
-            ${n.action_payload && !n.is_read ? `
-                <div style="margin-top: 8px;">
-                    <button class="btn btn-primary-light btn-xs btn-notif-action" data-nid="${n.id}">
-                        ${n.action_payload.action === 'mark_taken' ? 'Mark Taken' : n.action_payload.action === 'request_refill' ? 'Request Refill' : 'Take Action'}
-                    </button>
-                </div>
-            ` : ''}
-        </div>
-    `).join('') : '<p class="empty-state">No reminders yet.</p>';
-
-    el.querySelectorAll('.btn-notif-action').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            const nid = e.target.dataset.nid;
-            const actionRes = await fetch(`/api/notifications/${nid}/action`, { method: 'POST' });
-            if (actionRes.ok) {
-                loadNotifications();
-                refreshAll();
-            }
-        });
-    });
-}
-
-document.getElementById('notif-toggle')?.addEventListener('click', (e) => {
-    e.preventDefault();
-    const card = document.getElementById('notifications-card');
-    card.style.display = card.style.display === 'none' ? 'block' : 'none';
-    if (card.style.display === 'block') {
-        fetch('/api/notifications/read-all', { method: 'POST' }).then(loadNotifications);
-    }
-});
-
-document.getElementById('logout-link').addEventListener('click', async (e) => {
-    e.preventDefault();
-    await fetch('/api/auth/logout', { method: 'POST' });
-    window.location.href = '/login';
-});
-
-async function loadAdherence() {
-    const res = await fetch('/api/dashboard/adherence');
-    const logs = await res.json();
-    const cal = document.getElementById('adherence-calendar');
-    if (!cal) return logs;
-
-    const history = {};
-    logs.forEach(l => {
-        const d = new Date(l.taken_at).toDateString();
-        if (l.status === 'missed' || !history[d]) history[d] = l.status;
-    });
-
-    const NUM_WEEKS = 14, NUM_DAYS = NUM_WEEKS * 7;
-    const today = new Date();
-    const startDate = new Date(today);
-    startDate.setDate(today.getDate() - (NUM_DAYS - 1));
-    startDate.setDate(startDate.getDate() - startDate.getDay());
-
-    let html = '<div class="github-grid-container"><div class="github-grid-months" style="display:flex;position:relative;height:20px;margin-left:32px;">';
-    let tempDate = new Date(startDate), prevMonth = -1;
-    for (let w = 0; w < NUM_WEEKS; w++) {
-        let m = tempDate.getMonth();
-        if (m !== prevMonth && tempDate.getDate() < 24) {
-            html += `<div style="position:absolute;left:${w * 18}px;">${tempDate.toLocaleString('default', {month:'short'})}</div>`;
-            prevMonth = m;
-        }
-        tempDate.setDate(tempDate.getDate() + 7);
-    }
-    html += '</div><div class="github-grid-body"><div class="github-grid-weekdays"><div></div><div>Mon</div><div></div><div>Wed</div><div></div><div>Fri</div><div></div></div>';
-    tempDate = new Date(startDate);
-    for (let w = 0; w < NUM_WEEKS; w++) {
-        html += '<div class="github-grid-week">';
-        for (let d = 0; d < 7; d++) {
-            if (tempDate > today) {
-                html += '<div class="github-grid-day" style="background:transparent;box-shadow:none;cursor:default;"></div>';
-                tempDate.setDate(tempDate.getDate() + 1);
-                continue;
-            }
-            const dateStr = tempDate.toDateString();
-            const status = history[dateStr];
-            let cssClass = 'grid-level-0', statusText = 'No data';
-            if (status === 'taken') { cssClass = 'grid-level-3'; statusText = 'Taken'; }
-            else if (status === 'missed') { cssClass = 'grid-missed'; statusText = 'Missed'; }
-            html += `<div class="github-grid-day ${cssClass}"><div class="grid-tooltip">${dateStr} (${statusText})</div></div>`;
-            tempDate.setDate(tempDate.getDate() + 1);
-        }
-        html += '</div>';
-    }
-    html += '</div></div>';
-    cal.innerHTML = html;
-    return logs;
-}
-
-async function refreshAll() {
-    const [meds, appts, logs, records] = await Promise.all([
-        loadMedicines(), loadAppointments(), loadAdherence(), loadRecords()
-    ]);
-    updateStats(meds || [], appts || [], logs || [], records || []);
-}
-
-loadUser();
 refreshAll();
-loadNotifications();
-setInterval(loadNotifications, 60000);
-
-const sidebar = document.getElementById('sidebar');
-document.getElementById('sidebar-open')?.addEventListener('click', () => sidebar.classList.remove('sidebar-closed'));
-document.getElementById('sidebar-close')?.addEventListener('click', () => sidebar.classList.add('sidebar-closed'));
-if (window.innerWidth <= 900) sidebar.classList.add('sidebar-closed');
 </script>
 {% endblock %}
