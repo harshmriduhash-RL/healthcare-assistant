@@ -1,32 +1,36 @@
 {% extends "base.html" %}
-{% block title %}Sign up — CarePilot{% endblock %}
+{% block title %}Caregiver Signup — CarePilot AI{% endblock %}
 {% block body_class %}auth-page{% endblock %}
 {% block content %}
 <div class="auth-layout">
     <div class="auth-brand-panel">
         <a href="/" class="auth-brand">
             <span class="brand-mark">CP</span>
-            <span class="brand-text">CarePilot</span>
+            <span class="brand-text">CarePilot AI</span>
         </a>
-        <h2>Start managing your health smarter</h2>
-        <p>Create your free account and get a team of AI agents that help with medicines, records, and appointments — always with your approval.</p>
+        <h2>Watch over your aging parent's health — effortlessly</h2>
+        <p>CarePilot AI runs background health intelligence for aging parents living at home. You sign up as the Caregiver to receive plain-language pattern alerts. Your parent receives daily touchpoints via WhatsApp or phone calls — no app installation or login required for them.</p>
         <ul class="auth-features">
-            <li>Free to use, no credit card</li>
-            <li>Private — your data stays yours</li>
-            <li>Human approval on every AI action</li>
+            <li><strong>Caregiver Account:</strong> You (adult child) manage care logistics & alerts</li>
+            <li><strong>Zero Friction for Parent:</strong> Daily WhatsApp voice touchpoints, no app/login</li>
+            <li><strong>Human Approval Gate:</strong> You approve every AI action before saving</li>
+            <li><strong>India Value-Add:</strong> Generic med savings (₹ INR) & ABHA linking</li>
         </ul>
     </div>
     <div class="auth-form-panel">
         <div class="auth-card">
-            <h1>Create account</h1>
-            <p class="subtitle">Set up your personal CarePilot account</p>
+            <div style="background:var(--primary-light);color:var(--primary-dark);padding:8px 12px;border-radius:var(--radius-sm);font-size:12px;font-weight:700;margin-bottom:16px;display:inline-block;">
+                🧑‍⚕️ Signing up as Caregiver (Adult Child)
+            </div>
+            <h1>Create Caregiver Account</h1>
+            <p class="subtitle">Set up your account to start watching over your parent</p>
             <div id="error" class="error-text" style="display:none;"></div>
             <form id="signup-form">
-                <label for="username">Username</label>
-                <input type="text" id="username" placeholder="Choose a username" required minlength="3" autocomplete="username">
+                <label for="username">Caregiver Email or Username</label>
+                <input type="text" id="username" placeholder="e.g. harsh@example.com" required minlength="3" autocomplete="username">
                 <label for="password">Password</label>
                 <input type="password" id="password" placeholder="At least 8 characters" required minlength="8" autocomplete="new-password">
-                <button type="submit" class="btn btn-primary btn-full">Create account</button>
+                <button type="submit" class="btn btn-primary btn-full">Create Caregiver Account &rarr;</button>
             </form>
             <p class="auth-footer">Already have an account? <a href="/login">Log in</a></p>
             <p class="auth-footer"><a href="/">&larr; Back to home</a></p>
@@ -49,7 +53,8 @@ document.getElementById('signup-form').addEventListener('submit', async (e) => {
         }),
     });
     if (res.ok) {
-        window.location.href = '/dashboard';
+        // Redirect to dashboard with prompt to set up parent profile
+        window.location.href = '/dashboard?setup_parent=1';
     } else {
         const data = await res.json();
         errorEl.textContent = data.detail || 'Signup failed';

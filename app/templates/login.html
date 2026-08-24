@@ -1,34 +1,37 @@
 {% extends "base.html" %}
-{% block title %}Log in — CarePilot{% endblock %}
+{% block title %}Caregiver Login — CarePilot AI{% endblock %}
 {% block body_class %}auth-page{% endblock %}
 {% block content %}
 <div class="auth-layout">
     <div class="auth-brand-panel">
         <a href="/" class="auth-brand">
             <span class="brand-mark">CP</span>
-            <span class="brand-text">CarePilot</span>
+            <span class="brand-text">CarePilot AI</span>
         </a>
-        <h2>Welcome back</h2>
-        <p>Your AI care team is ready. Log in to manage medicines, track adherence, and chat with your assistant.</p>
+        <h2>Welcome back, Caregiver</h2>
+        <p>Log into your CarePilot AI dashboard to review pattern alerts, approve proposed medical updates, and manage your parent's care logistics.</p>
         <ul class="auth-features">
-            <li>Multi-agent AI with human approval</li>
-            <li>Adherence tracking &amp; reminders</li>
-            <li>Searchable medical records</li>
+            <li><strong>Caregiver Portal:</strong> Pattern alerts & HITL approvals</li>
+            <li><strong>Parent Touchpoints:</strong> Active in background (WhatsApp/IVR)</li>
+            <li><strong>Multi-Caregiver:</strong> Shared family access feed</li>
         </ul>
     </div>
     <div class="auth-form-panel">
         <div class="auth-card">
+            <div style="background:var(--primary-light);color:var(--primary-dark);padding:8px 12px;border-radius:var(--radius-sm);font-size:12px;font-weight:700;margin-bottom:16px;display:inline-block;">
+                🧑‍⚕️ Caregiver Login
+            </div>
             <h1>Log in</h1>
-            <p class="subtitle">Enter your credentials to continue</p>
+            <p class="subtitle">Enter your caregiver account credentials</p>
             <div id="error" class="error-text" style="display:none;"></div>
             <form id="login-form">
-                <label for="username">Username</label>
+                <label for="username">Username or Email</label>
                 <input type="text" id="username" placeholder="Your username" required autocomplete="username">
                 <label for="password">Password</label>
                 <input type="password" id="password" placeholder="Your password" required autocomplete="current-password">
-                <button type="submit" class="btn btn-primary btn-full">Log in</button>
+                <button type="submit" class="btn btn-primary btn-full">Log in &rarr;</button>
             </form>
-            <p class="auth-footer">No account? <a href="/signup">Create one free</a></p>
+            <p class="auth-footer">Don't have a caregiver account? <a href="/signup">Create one free</a></p>
             <p class="auth-footer"><a href="/">&larr; Back to home</a></p>
         </div>
     </div>

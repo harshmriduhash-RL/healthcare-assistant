@@ -627,6 +627,11 @@ document.getElementById('upload-btn').addEventListener('click', async () => {
     refreshAll();
 });
 
-refreshAll();
+refreshAll().then(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('setup_parent') === '1') {
+        document.getElementById('new-patient-modal').showModal();
+    }
+});
 </script>
 {% endblock %}
