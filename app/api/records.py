@@ -69,7 +69,8 @@ async def upload_record(
     # Create notification insight
     insight_text = f"Analyzed {file.filename}. "
     if vitals_found:
-        insight_text += f"Extracted vitals: {', '.join([f'{v[\"type\"]}: {v[\"value\"]}' for v in vitals_found])}. "
+        vitals_str = ", ".join([f"{v['type']}: {v['value']}" for v in vitals_found])
+        insight_text += f"Extracted vitals: {vitals_str}. "
     if reconcile_results["has_discrepancies"]:
         insight_text += "Proposed prescription updates found for human review."
         record.reconciliation_proposed = True

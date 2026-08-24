@@ -78,11 +78,7 @@ async def me(user: User = Depends(get_current_user)):
 
 @router.post("/logout")
 async def logout(response: Response):
-    """Clear the auth cookie. There's no server-side session/token
-    revocation list in this prototype -- the JWT itself just naturally
-    expires after settings.jwt_expire_minutes even if not explicitly
-    logged out, and deleting the cookie is enough for the normal
-    "user clicks logout" flow.
-    """
-    response.delete_cookie("access_token")
+    response.delete_cookie("access_token", path="/", httponly=True, samesite="lax")
+    response.delete_cookie("active_patient_id", path="/")
     return {"ok": True}
+

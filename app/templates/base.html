@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="CarePilot — Your health, guided by AI, approved by you. A multi-agent assistant for medicines, records, and appointments.">
-    <title>{% block title %}CarePilot{% endblock %}</title>
+    <meta name="description" content="CarePilot AI — Caregiving Intelligence System for families with aging parents.">
+    <title>{% block title %}CarePilot AI{% endblock %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -13,5 +13,25 @@
 <body class="{% block body_class %}{% endblock %}">
     {% block content %}{% endblock %}
     {% block scripts %}{% endblock %}
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const logoutBtn = document.getElementById('logout-link');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    try {
+                        await fetch('/api/auth/logout', { method: 'POST' });
+                    } catch (_) {}
+                    window.location.href = '/login';
+                });
+            }
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar) {
+                document.getElementById('sidebar-open')?.addEventListener('click', () => sidebar.classList.remove('sidebar-closed'));
+                document.getElementById('sidebar-close')?.addEventListener('click', () => sidebar.classList.add('sidebar-closed'));
+                if (window.innerWidth <= 900) sidebar.classList.add('sidebar-closed');
+            }
+        });
+    </script>
 </body>
 </html>
