@@ -12,7 +12,6 @@ Two entry points other files use:
     their records.
 """
 
-from pypdf import PdfReader
 from sentence_transformers import SentenceTransformer
 from sqlalchemy import select
 
@@ -42,6 +41,8 @@ def extract_pdf_text(file_path: str) -> str:
     text (e.g. a scanned image with no text layer) -- `or ""` guards
     against that so we don't crash trying to join None into a string.
     """
+    from pypdf import PdfReader
+
     reader = PdfReader(file_path)
     return "\n".join(page.extract_text() or "" for page in reader.pages)
 
@@ -65,7 +66,7 @@ def chunk_text(text: str, chunk_size: int = CHUNK_SIZE, overlap: int = CHUNK_OVE
     return [c.strip() for c in chunks if c.strip()]
 
 
-async def process_and_store_record(user_id: str, record_id: str, file_path: str) -> int:
+async def process_and_store_record(patient_id: str, record_id: str, file_path: str, text: str | None = None) -> int:
     """Full indexing pipeline for one uploaded PDF: extract -> chunk ->
     embed -> store. Called synchronously right after upload (see
     app/api/records.py) so the document is searchable immediately,
@@ -75,7 +76,9 @@ async def process_and_store_record(user_id: str, record_id: str, file_path: str)
     Returns the number of chunks created (0 if the PDF had no extractable
     text, e.g. a pure-image scan with no OCR applied).
     """
-    text = extract_pdf_text(file_path)
+    if text is None:
+        from app.services.ocr_service import extract_text_from_file
+        text = await extract_text_from_file(file_path, file_path)
     chunks = chunk_text(text)
     if not chunks:
         return 0
@@ -89,7 +92,7 @@ async def process_and_store_record(user_id: str, record_id: str, file_path: str)
     async with AsyncSessionLocal() as db:
         for idx, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
             db.add(RecordChunk(
-                record_id=record_id, user_id=user_id, chunk_index=idx,
+                record_id=record_id, patient_id=patient_id, chunk_index=idx,
                 content=chunk, embedding=embedding.tolist(),  # pgvector's SQLAlchemy type wants a plain Python list, not a numpy array
             ))
         await db.commit()

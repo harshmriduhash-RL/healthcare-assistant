@@ -58,7 +58,7 @@ async def upload_record(
     await db.refresh(record)
 
     # Process chunks for RAG vector search
-    chunk_count = await process_and_store_record(patient.id, record.id, file_path)
+    chunk_count = await process_and_store_record(patient.id, record.id, file_path, extracted_text)
 
     # Extract & store lab vitals (HbA1c, BP, Glucose, Creatinine, Cholesterol)
     vitals_found = await extract_and_store_lab_vitals(db, patient.id, extracted_text, source=file.filename)

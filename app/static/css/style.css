@@ -1061,6 +1061,7 @@ tr:hover td { background: var(--bg); }
 }
 .github-grid-day:hover { transform: scale(1.3); z-index: 10; }
 .grid-level-0 { background: #ebedf0; }
+.grid-level-1 { background: #9be9a8; }
 .grid-level-3 { background: #30a14e; }
 .grid-missed { background: var(--warning); }
 .grid-tooltip {
@@ -1070,6 +1071,15 @@ tr:hover td { background: var(--bg); }
     opacity: 0; transition: opacity 0.2s; margin-bottom: 4px; z-index: 20;
 }
 .github-grid-day:hover .grid-tooltip { opacity: 1; }
+.github-calendar-grid { display: grid; grid-template-rows: repeat(7, 14px); grid-auto-flow: column; grid-auto-columns: 14px; gap: 4px; min-width: max-content; }
+.calendar-legend { display: flex; align-items: center; gap: 5px; margin-top: 8px; font-size: 11px; color: var(--text-muted); }
+.calendar-legend i { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+.notification-panel { position: fixed; z-index: 50; top: 72px; left: 270px; width: min(380px, calc(100vw - 32px)); max-height: calc(100vh - 100px); overflow-y: auto; padding: 18px; background: white; border: 1px solid var(--border); box-shadow: 0 14px 40px rgba(15, 23, 42, .18); display: none; }
+.notification-panel.open { display: block; }
+.notification-item { padding: 12px 0; border-bottom: 1px solid var(--border-light); }
+.notification-item.unread { border-left: 3px solid var(--primary); padding-left: 9px; }
+.notification-item p { margin: 5px 0; font-size: 13px; }
+.notification-item small { color: var(--text-muted); display: block; margin-bottom: 8px; }
 
 /* ============================================================
    ANIMATIONS

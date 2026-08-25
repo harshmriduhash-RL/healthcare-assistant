@@ -6,6 +6,10 @@
 <div class="app-shell">
     {% set active_page = 'dashboard' %}
     {% include "partials/app_sidebar.html" %}
+    <aside id="notification-panel" class="notification-panel" aria-live="polite">
+        <div class="card-header"><h3>Reminders</h3><button class="btn btn-secondary btn-xs" id="notif-read-all">Mark all read</button></div>
+        <div id="notification-list"><p class="thinking">Loading reminders...</p></div>
+    </aside>
     <div class="main-content" id="main-content">
 
         <!-- Top Header & Emergency SOS Button -->
@@ -130,6 +134,14 @@
                 </div>
             </div>
             <div id="medicines-list"><p class="thinking">Loading medicines...</p></div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3>Medication adherence</h3>
+                <span class="text-muted" id="adherence-summary">Loading...</span>
+            </div>
+            <div id="adherence-calendar" class="github-grid-container"></div>
         </div>
 
         <!-- Add Medicine Form -->
@@ -264,6 +276,41 @@
 <script>
 let currentPatientId = "";
 let lastCheckinId = "";
+
+async function loadNotifications() {
+    const panel = document.getElementById('notification-panel');
+    try {
+        const res = await fetch('/api/notifications/');
+        if (!res.ok) return;
+        const notifications = await res.json();
+        const unread = notifications.filter(n => !n.is_read).length;
+        const badge = document.getElementById('notif-badge');
+        badge.textContent = unread || '';
+        badge.style.display = unread ? 'inline-flex' : 'none';
+        document.getElementById('notification-list').innerHTML = notifications.length
+            ? notifications.map(n => `<div class="notification-item ${n.is_read ? '' : 'unread'}">
+                <strong>${n.title}</strong><p>${n.body || ''}</p>
+                <small>${new Date(n.created_at).toLocaleString()}</small>
+                ${n.action_payload?.action === 'mark_taken' ? `<button class="btn btn-primary-light btn-xs" onclick="actOnNotification('${n.id}')">Mark taken</button>` : ''}
+            </div>`).join('')
+            : '<p class="empty-state">No reminders right now.</p>';
+    } catch (_) {}
+}
+
+async function actOnNotification(id) {
+    const res = await fetch(`/api/notifications/${id}/action`, { method: 'POST' });
+    if (res.ok) { await loadNotifications(); await refreshAll(); }
+}
+
+document.getElementById('notif-toggle')?.addEventListener('click', (event) => {
+    event.preventDefault();
+    document.getElementById('notification-panel').classList.toggle('open');
+    loadNotifications();
+});
+document.getElementById('notif-read-all')?.addEventListener('click', async () => {
+    await fetch('/api/notifications/read-all', { method: 'POST' });
+    loadNotifications();
+});
 
 async function loadPatients() {
     try {
@@ -522,6 +569,8 @@ async function refreshAll() {
     const recsRes = await fetch('/api/records/');
     const recs = await recsRes.json();
     renderRecords(recs);
+    await loadAdherence();
+    await loadNotifications();
 }
 
 function renderMedicines(meds) {
@@ -532,7 +581,7 @@ function renderMedicines(meds) {
         return;
     }
     el.innerHTML = `<div class="table-wrap"><table>
-        <thead><tr><th>Medicine</th><th>Supply</th><th>Dosages</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Medicine</th><th>Supply</th><th>Amount</th><th>Timing</th><th>Instructions</th><th>Actions</th></tr></thead>
         <tbody>${meds.map(m => `
             <tr>
                 <td>
@@ -540,13 +589,42 @@ function renderMedicines(meds) {
                     ${m.current_streak > 0 ? `<span class="badge">🔥 ${m.current_streak} Day Streak</span>` : ''}
                 </td>
                 <td>${m.supply_count !== null ? `${m.supply_count} left` : '—'}</td>
-                <td>${m.dosages.map(d => `${d.amount} (${d.frequency})`).join(', ') || 'None'}</td>
+                <td>${m.dosages.map(d => `${d.amount} <span class="text-muted">(${d.frequency})</span>`).join('<br>') || 'None'}</td>
+                <td>${m.dosages.map(d => d.time_of_day || 'As directed').join('<br>')}</td>
+                <td>${m.dosages.map(d => d.consumption_instructions || 'No instruction').join('<br>')}</td>
                 <td>
                     <button class="btn btn-primary-light btn-xs" onclick="openDosageModal('${m.id}')">+ Dose</button>
+                    ${m.dosages[0] ? `<button class="btn btn-success-light btn-xs" onclick="logDose('${m.dosages[0].id}')" title="Record taken dose">✓</button>` : ''}
                     <button class="btn btn-danger-light btn-xs" onclick="deleteMed('${m.id}')">Delete</button>
                 </td>
             </tr>
         `).join('')}</tbody></table></div>`;
+}
+
+async function logDose(dosageId) {
+    const res = await fetch(`/api/dashboard/adherence/${dosageId}?status=taken`, { method: 'POST' });
+    if (res.ok) refreshAll();
+}
+
+async function loadAdherence() {
+    const res = await fetch('/api/dashboard/adherence?days=365');
+    if (!res.ok) return;
+    const payload = await res.json();
+    const values = Object.values(payload.data);
+    const taken = values.reduce((sum, day) => sum + day.taken, 0);
+    const missed = values.reduce((sum, day) => sum + day.missed, 0);
+    const total = taken + missed;
+    document.getElementById('adherence-summary').textContent = total ? `${Math.round(taken / total * 100)}% adherence · ${taken} taken · ${missed} missed` : 'No dose logs yet';
+    const start = new Date(`${payload.start}T00:00:00`);
+    const cells = [];
+    for (let index = 0; index < payload.days; index++) {
+        const date = new Date(start); date.setDate(start.getDate() + index);
+        const key = date.toISOString().slice(0, 10);
+        const day = payload.data[key] || { taken: 0, missed: 0, skipped: 0 };
+        const level = day.missed ? 'grid-missed' : day.taken >= 3 ? 'grid-level-3' : day.taken ? 'grid-level-1' : 'grid-level-0';
+        cells.push(`<div class="github-grid-day ${level}" title="${key}: ${day.taken} taken, ${day.missed} missed"></div>`);
+    }
+    document.getElementById('adherence-calendar').innerHTML = `<div class="github-calendar-grid">${cells.join('')}</div><div class="calendar-legend">Less <i class="grid-level-0"></i><i class="grid-level-1"></i><i class="grid-level-3"></i><i class="grid-missed"></i> More missed</div>`;
 }
 
 function openDosageModal(medId) {
@@ -622,6 +700,7 @@ document.getElementById('upload-btn').addEventListener('click', async () => {
 
     const res = await fetch('/api/records/upload', { method: 'POST', body: formData });
     const data = await res.json();
+    if (!res.ok || data.error) { alert(data.error || 'Upload failed.'); return; }
     alert(`File uploaded and indexed via OCR! ${data.chunks_indexed} RAG vector chunks generated.`);
     fileInput.value = '';
     refreshAll();

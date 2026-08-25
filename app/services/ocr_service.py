@@ -31,13 +31,15 @@ async def extract_text_from_file(file_path: str, filename: str) -> str:
         except Exception as e:
             logger.error(f"Error reading PDF {filename}: {e}")
 
-    if not extracted:
-        # Fallback reading as text if plain file or OCR simulation
+    if not extracted and not file_lower.endswith((".pdf", ".png", ".jpg", ".jpeg", ".webp")):
         try:
             with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                 extracted = f.read()
         except Exception:
-            extracted = f"Document uploaded: {filename}"
+            extracted = ""
+
+    if not extracted:
+        extracted = f"Document uploaded: {filename}. No selectable text was found."
 
     return extracted
 

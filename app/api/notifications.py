@@ -12,8 +12,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import get_current_user
-from app.db.models import Notification, User, Medicine, MedicationLog
+from app.core.deps import get_current_patient_context, get_current_user
+from app.db.models import Notification, User, Medicine, MedicationLog, Patient
 from app.db.session import get_db
 
 router = APIRouter(prefix="/api/notifications", tags=["notifications"])
@@ -67,7 +67,7 @@ async def mark_all_read(user: User = Depends(get_current_user), db: AsyncSession
 
 
 @router.post("/{notification_id}/action")
-async def take_action(notification_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def take_action(notification_id: str, patient: Patient = Depends(get_current_patient_context), user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Handle one-tap actions from notifications (e.g., mark as taken, request refill)."""
     # 1. Fetch notification
     result = await db.execute(select(Notification).where(Notification.id == notification_id, Notification.user_id == user.id))
@@ -83,7 +83,7 @@ async def take_action(notification_id: str, user: User = Depends(get_current_use
         raise HTTPException(status_code=400, detail="Malformed action payload")
 
     # 2. Fetch the associated medicine
-    med_result = await db.execute(select(Medicine).where(Medicine.id == medicine_id, Medicine.user_id == user.id))
+    med_result = await db.execute(select(Medicine).where(Medicine.id == medicine_id, Medicine.patient_id == patient.id))
     medicine = med_result.scalar_one_or_none()
 
     if not medicine:
@@ -96,6 +96,7 @@ async def take_action(notification_id: str, user: User = Depends(get_current_use
             
         # Log the dose
         db.add(MedicationLog(
+            patient_id=patient.id,
             user_id=user.id,
             medicine_id=medicine.id,
             dosage_id=dosage_id,

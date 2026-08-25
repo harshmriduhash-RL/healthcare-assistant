@@ -52,7 +52,9 @@ async def check_dosages_due() -> None:
             if not due:
                 continue
 
-            user_id = medicine.user_id or "system"
+            user_id = medicine.user_id
+            if not user_id:
+                continue
             if await _already_notified_recently(db, user_id, "dosage_due", dosage.id, within_minutes=60):
                 continue
 

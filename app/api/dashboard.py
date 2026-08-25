@@ -5,7 +5,7 @@ All operations are scoped to active Patient context via `get_current_patient_con
 
 import csv
 import io
-import random
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
@@ -18,6 +18,56 @@ from app.db.models import Appointment, Dosage, MedicalRecord, MedicationLog, Med
 from app.db.session import get_db
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
+
+
+@router.get("/adherence")
+async def adherence_calendar(
+    days: int = 365,
+    patient: Patient = Depends(get_current_patient_context),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return daily taken/missed dose totals for the current patient."""
+    days = max(7, min(days, 730))
+    since = datetime.now(timezone.utc) - timedelta(days=days - 1)
+    result = await db.execute(
+        select(MedicationLog).where(
+            MedicationLog.patient_id == patient.id,
+            MedicationLog.taken_at >= since,
+        ).order_by(MedicationLog.taken_at.asc())
+    )
+    totals = {}
+    for log in result.scalars().all():
+        day = log.taken_at.date().isoformat()
+        item = totals.setdefault(day, {"taken": 0, "missed": 0, "skipped": 0})
+        item[log.status] = item.get(log.status, 0) + 1
+    return {"days": days, "start": since.date().isoformat(), "end": datetime.now(timezone.utc).date().isoformat(), "data": totals}
+
+
+@router.post("/adherence/{dosage_id}")
+async def log_adherence(
+    dosage_id: str,
+    status: str = "taken",
+    patient: Patient = Depends(get_current_patient_context),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Allow a caregiver to record a dose from the dashboard calendar."""
+    if status not in {"taken", "missed", "skipped"}:
+        raise HTTPException(status_code=400, detail="Invalid adherence status")
+    result = await db.execute(select(Dosage, Medicine).join(Medicine).where(Dosage.id == dosage_id, Medicine.patient_id == patient.id))
+    row = result.first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Dosage not found")
+    dosage, medicine = row
+    db.add(MedicationLog(patient_id=patient.id, user_id=user.id, medicine_id=medicine.id, dosage_id=dosage.id, status=status))
+    if status == "taken":
+        if medicine.supply_count is not None and medicine.supply_count > 0:
+            medicine.supply_count -= 1
+        medicine.current_streak += 1
+        medicine.longest_streak = max(medicine.longest_streak, medicine.current_streak)
+    await db.commit()
+    return {"ok": True, "status": status}
 
 
 # ==================== Medicines ====================
