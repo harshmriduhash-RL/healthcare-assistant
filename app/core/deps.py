@@ -56,7 +56,7 @@ async def get_current_patient_context(
             .where(CaregiverPatient.user_id == user.id, Patient.id == target_patient_id, Patient.is_active == True)
         )
         result = await db.execute(stmt)
-        patient = result.scalar_one_or_none()
+        patient = result.scalars().first()
         if patient:
             return patient
 
@@ -68,7 +68,7 @@ async def get_current_patient_context(
         .order_by(CaregiverPatient.created_at.asc())
     )
     result = await db.execute(stmt)
-    patient = result.scalar_one_or_none()
+    patient = result.scalars().first()
 
     if not patient:
         # Create a default patient profile for new caregivers
