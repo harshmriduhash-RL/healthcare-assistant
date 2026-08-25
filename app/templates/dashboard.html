@@ -615,16 +615,28 @@ async function loadAdherence() {
     const missed = values.reduce((sum, day) => sum + day.missed, 0);
     const total = taken + missed;
     document.getElementById('adherence-summary').textContent = total ? `${Math.round(taken / total * 100)}% adherence · ${taken} taken · ${missed} missed` : 'No dose logs yet';
-    const start = new Date(`${payload.start}T00:00:00`);
+    const firstDate = new Date(`${payload.start}T00:00:00`);
+    const calendarStart = new Date(firstDate);
+    calendarStart.setDate(calendarStart.getDate() - calendarStart.getDay());
+    const calendarEnd = new Date(`${payload.end}T00:00:00`);
+    const weekCount = Math.ceil((calendarEnd - calendarStart) / (7 * 24 * 60 * 60 * 1000));
+    const monthLabels = [];
     const cells = [];
-    for (let index = 0; index < payload.days; index++) {
-        const date = new Date(start); date.setDate(start.getDate() + index);
-        const key = date.toISOString().slice(0, 10);
-        const day = payload.data[key] || { taken: 0, missed: 0, skipped: 0 };
-        const level = day.missed ? 'grid-missed' : day.taken >= 3 ? 'grid-level-3' : day.taken ? 'grid-level-1' : 'grid-level-0';
-        cells.push(`<div class="github-grid-day ${level}" title="${key}: ${day.taken} taken, ${day.missed} missed"></div>`);
+    for (let week = 0; week < weekCount; week++) {
+        const weekStart = new Date(calendarStart);
+        weekStart.setDate(calendarStart.getDate() + week * 7);
+        monthLabels.push(weekStart.getDate() <= 7 ? `<span>${weekStart.toLocaleDateString(undefined, { month: 'short' })}</span>` : '<span></span>');
+        for (let weekday = 0; weekday < 7; weekday++) {
+            const date = new Date(weekStart);
+            date.setDate(weekStart.getDate() + weekday);
+            const key = date.toISOString().slice(0, 10);
+            const day = payload.data[key] || { taken: 0, missed: 0, skipped: 0 };
+            const outsideRange = date < firstDate || date > calendarEnd;
+            const level = outsideRange ? 'grid-outside' : day.missed ? 'grid-missed' : day.taken >= 3 ? 'grid-level-3' : day.taken ? 'grid-level-1' : 'grid-level-0';
+            cells.push(`<div class="github-grid-day ${level}" title="${outsideRange ? '' : `${key}: ${day.taken} taken, ${day.missed} missed`}"></div>`);
+        }
     }
-    document.getElementById('adherence-calendar').innerHTML = `<div class="github-calendar-grid">${cells.join('')}</div><div class="calendar-legend">Less <i class="grid-level-0"></i><i class="grid-level-1"></i><i class="grid-level-3"></i><i class="grid-missed"></i> More missed</div>`;
+    document.getElementById('adherence-calendar').innerHTML = `<div class="github-calendar-months"><span></span>${monthLabels.join('')}</div><div class="github-calendar-row"><div class="github-calendar-weekdays"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div><div class="github-calendar-grid">${cells.join('')}</div></div><div class="calendar-legend">Less <i class="grid-level-0"></i><i class="grid-level-1"></i><i class="grid-level-3"></i><i class="grid-missed"></i> More missed</div>`;
 }
 
 function openDosageModal(medId) {
