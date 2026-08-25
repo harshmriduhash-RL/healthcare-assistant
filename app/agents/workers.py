@@ -5,6 +5,8 @@ Worker agents with fallback handling for zero-downtime execution.
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_groq import ChatGroq
 from pydantic import BaseModel, Field
+from datetime import datetime
+import re
 
 from app.agents.state import AgentState
 from app.core.config import settings
@@ -125,6 +127,29 @@ def _requested_doctor_name(message: str) -> str | None:
                 return name
     return None
 
+
+def _requested_appointment_date(message: str) -> str | None:
+    """Return an explicit appointment date as YYYY-MM-DD."""
+    today = datetime.now()
+    match = re.search(r"\b(\d{1,2})\s+(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)(?:\s+(\d{4}))?\b", message, re.IGNORECASE)
+    if match:
+        month = datetime.strptime(match.group(2)[:3].title(), "%b").month
+        year = int(match.group(3) or today.year)
+        return datetime(year, month, int(match.group(1))).date().isoformat()
+    iso_match = re.search(r"\b(20\d{2})-(\d{2})-(\d{2})\b", message)
+    if iso_match:
+        return iso_match.group(0)
+    return None
+
+
+def _contains_appointment_time(message: str) -> bool:
+    return bool(re.search(r"\b(?:[01]?\d|2[0-3]):[0-5]\d\b|\b(?:1[0-2]|[1-9])(?:\s*:\s*[0-5]\d)?\s*(?:am|pm)\b", message, re.IGNORECASE))
+
+
+def _contains_doctor_specialty(message: str) -> bool:
+    specialties = r"cardiologist|neurologist|orthopedic|orthopaedic|dermatologist|diabetologist|endocrinologist|psychiatrist|gynecologist|gynaecologist|ophthalmologist|ent specialist|general physician|dentist|surgeon"
+    return bool(re.search(rf"\b(?:{specialties})\b", message, re.IGNORECASE))
+
 class AppointmentAction(BaseModel):
     action: str = Field(description="One of: schedule_appointment, none")
     doctor_name: str | None = None
@@ -137,6 +162,9 @@ class AppointmentAction(BaseModel):
 async def appointment_agent(state: AgentState) -> dict:
     last_msg = next((m.content for m in reversed(state["messages"]) if isinstance(m, HumanMessage)), "")
     requested_doctor = _requested_doctor_name(last_msg)
+    requested_date = _requested_appointment_date(last_msg)
+    has_time = _contains_appointment_time(last_msg)
+    has_specialty = _contains_doctor_specialty(last_msg)
 
     try:
         llm = ChatGroq(model=settings.groq_model_worker, api_key=settings.groq_api_key, temperature=0)
@@ -147,12 +175,18 @@ async def appointment_agent(state: AgentState) -> dict:
         ])
         action, doc, spec, when, desc = result.action, result.doctor_name, result.specialty, result.scheduled_for, result.description
         doc = requested_doctor or doc
+        if requested_date and when:
+            try:
+                parsed_when = datetime.fromisoformat(when)
+                when = f"{requested_date}T{parsed_when.strftime('%H:%M:%S')}"
+            except ValueError:
+                when = requested_date
     except Exception:
         if any(k in last_msg.lower() for k in ["schedule", "appointment", "book", "doctor"]):
             action = "schedule_appointment"
             doc = requested_doctor
-            spec = "General Physician"
-            when = "2026-08-28T10:00:00"
+            spec = None
+            when = requested_date
             desc = f"Schedule doctor appointment with {doc}" if doc else "Schedule doctor appointment"
         else:
             action = "none"
@@ -161,6 +195,14 @@ async def appointment_agent(state: AgentState) -> dict:
     if action == "none":
         return {"final_response": "I won't schedule anything unless you explicitly ask me to. Let me know if you'd like an appointment booked."}
 
+    missing = []
+    if not spec and not has_specialty:
+        missing.append("what kind of doctor or specialty you need")
+    if not has_time:
+        missing.append("what time works for you")
+    if missing:
+        return {"final_response": f"Before I book it, please tell me {', and '.join(missing)}."}
+
     return {
         "proposed_action": {
             "agent": "appointment_agent",
@@ -168,8 +210,8 @@ async def appointment_agent(state: AgentState) -> dict:
             "description": desc or "Schedule appointment",
             "payload": {
                 "doctor_name": doc or "Doctor to be confirmed",
-                "specialty": spec or "General Physician",
-                "scheduled_for": when or "2026-08-28T10:00:00",
+                "specialty": spec,
+                "scheduled_for": when,
                 "notes": "Requested via AI Assistant",
             },
         }
