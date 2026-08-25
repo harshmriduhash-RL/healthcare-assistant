@@ -109,6 +109,22 @@ async def dosage_agent(state: AgentState) -> dict:
 
 # ==================== Appointment agent ====================
 
+def _requested_doctor_name(message: str) -> str | None:
+    """Preserve a doctor name explicitly supplied in the appointment request."""
+    import re
+
+    patterns = (
+        r"\b(?:with|for)\s+((?:dr\.?\s+)?[A-Za-z][A-Za-z .'-]*?)(?=\s+(?:on|at|tomorrow|next|this)\b|[,.;!?]|$)",
+        r"\bdoctor\s+((?:dr\.?\s+)?[A-Za-z][A-Za-z .'-]+?)(?=\s+(?:on|at|tomorrow|next|this)\b|[,.;!?]|$)",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, message, re.IGNORECASE)
+        if match:
+            name = " ".join(match.group(1).split()).strip(" .,-")
+            if name.lower() not in {"appointment", "visit", "consultation"}:
+                return name
+    return None
+
 class AppointmentAction(BaseModel):
     action: str = Field(description="One of: schedule_appointment, none")
     doctor_name: str | None = None
@@ -120,22 +136,24 @@ class AppointmentAction(BaseModel):
 
 async def appointment_agent(state: AgentState) -> dict:
     last_msg = next((m.content for m in reversed(state["messages"]) if isinstance(m, HumanMessage)), "")
+    requested_doctor = _requested_doctor_name(last_msg)
 
     try:
         llm = ChatGroq(model=settings.groq_model_worker, api_key=settings.groq_api_key, temperature=0)
         structured_llm = llm.with_structured_output(AppointmentAction)
         result: AppointmentAction = await structured_llm.ainvoke([
-            SystemMessage(content="Schedule doctor appointment ONLY when explicitly requested."),
+            SystemMessage(content="Schedule doctor appointment ONLY when explicitly requested. Preserve any explicitly supplied doctor name exactly; never substitute or invent a doctor name."),
             *state["messages"],
         ])
         action, doc, spec, when, desc = result.action, result.doctor_name, result.specialty, result.scheduled_for, result.description
+        doc = requested_doctor or doc
     except Exception:
         if any(k in last_msg.lower() for k in ["schedule", "appointment", "book", "doctor"]):
             action = "schedule_appointment"
-            doc = "Dr. Sharma"
+            doc = requested_doctor
             spec = "General Physician"
             when = "2026-08-28T10:00:00"
-            desc = "Schedule doctor appointment with Dr. Sharma"
+            desc = f"Schedule doctor appointment with {doc}" if doc else "Schedule doctor appointment"
         else:
             action = "none"
             doc, spec, when, desc = None, None, None, ""
@@ -149,7 +167,7 @@ async def appointment_agent(state: AgentState) -> dict:
             "action": action,
             "description": desc or "Schedule appointment",
             "payload": {
-                "doctor_name": doc or "Dr. Sharma",
+                "doctor_name": doc or "Doctor to be confirmed",
                 "specialty": spec or "General Physician",
                 "scheduled_for": when or "2026-08-28T10:00:00",
                 "notes": "Requested via AI Assistant",
